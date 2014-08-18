@@ -1,0 +1,68 @@
+Policy: /usr/sbin/dhcpd, Emulation: native
+	native-__sysctl: permit
+	native-accept: permit
+	native-bind: sockaddr match "inet-*:67" then permit
+	native-bind: sockaddr eq "/var/run/dhcpd.sock" then permit
+	native-chdir: filename eq "/" then permit
+	native-chmod: filename eq "/var/run/dhcpd.sock" then permit
+	native-chown: filename eq "/var/run/dhcpd.sock" then permit
+	native-chroot: filename eq "/var/empty" then permit
+	native-clock_gettime: permit
+	native-close: permit
+	native-dup2: permit
+	native-execve: filename eq "/usr/sbin/dhcpctl" and argv eq "dhcpctl reload" then permit[inherit]
+	native-exit: permit
+	native-fcntl: permit
+	native-fork: permit
+	native-fstat: permit
+	native-fsread: filename sub "<non-existent filename>" then deny[enoent]
+	native-fsread: filename eq "/etc/malloc.conf" then permit
+	native-fsread: filename eq "/etc/spwd.db" then permit
+	native-fsread: filename match "/usr/lib/libc.so.*" then permit
+	native-fsread: filename match "/usr/lib/libevent.so.*" then permit
+	native-fsread: filename match "/usr/lib/libutil.so.*" then permit
+	native-fsread: filename match "/usr/share/nls/*" then permit
+	native-fsread: filename match "/usr/share/zoneinfo/*" then permit
+	native-fsread: filename eq "/var/run/ld.so.hints" then permit
+	native-fsread: filename eq "/var/run/dhcpd.sock" then permit
+	native-fswrite: filename match "/dev/bpf*" then permit
+	native-fswrite: filename eq "/dev/null" then permit
+	native-fswrite: filename eq "/var/run/dhcpd.sock" then permit
+	native-getdtablecount: permit
+	native-getentropy: permit
+	native-geteuid: permit
+	native-getpid: permit
+	native-getrlimit: permit
+	native-gettimeofday: permit
+	native-ioctl: permit
+	native-issetugid: permit
+	native-listen: permit
+	native-minherit: permit
+	native-mmap: permit
+	native-mprotect: permit
+	native-mquery: permit
+	native-munmap: permit
+	native-poll: permit
+	native-pread: permit
+	native-read: permit
+	native-recvfrom: permit
+	native-recvmsg: permit
+	native-sendmsg: permit
+	native-sendto: permit
+	native-sendsyslog: permit
+	native-setgroups: permit
+	native-setresgid: permit
+	native-setresuid: permit
+	native-setsid: permit
+	native-setsockopt: permit
+	native-sigaction: permit
+	native-sigprocmask: permit
+	native-sigreturn: permit
+	native-socket: sockdom eq "AF_INET" and socktype eq "SOCK_DGRAM" then permit
+	native-socket: sockdom eq "AF_UNIX" and socktype eq "SOCK_STREAM" then permit
+	# the AF_ROUTE socket for interface and address info.
+	native-socket: sockdom eq "AF_UNKNOWN(17)" and socktype eq "SOCK_RAW" then permit
+	native-socketpair: permit
+	native-wait4: permit
+	native-write: permit
+

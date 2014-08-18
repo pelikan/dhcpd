@@ -1,0 +1,393 @@
+.\" $OpenBSD$
+.\"
+.\" Copyright (c) 2014 Martin Pelikan <pelikan@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate$
+.Dt DHCPCTL 8
+.Os
+.Sh NAME
+.Nm dhcpctl
+.Nd control the Dynamic Host Configuration Protocol daemon
+.Sh SYNOPSIS
+.Nm dhcpctl
+.Op Fl s Ar socket
+.Ar command
+.Op Ar argument ...
+.Sh DESCRIPTION
+The
+.Nm
+program controls the
+.Xr dhcpd 8
+daemon.
+Commands may be abbreviated to the minimum unambiguous prefix; for example,
+.Cm sha l
+for
+.Cm shared_network list .
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl s Ar socket
+Use
+.Ar socket
+instead of the default
+.Pa /var/run/dhcpd.sock
+to communicate with
+.Xr dhcpd 8 .
+.El
+.Pp
+The commands are as follows:
+
+.Ss Shared networks
+A
+.Dq shared network
+typically represents one physical network segment (e.g. a VLAN) with one
+or more subnets.  If not specified when optional, the
+.Em default
+shared network is used; it cannot be deleted.
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm shared_network add Ar name
+.Xc
+Add a shared network.
+.It Xo
+.Cm shared_network
+.Cm delete Ar name
+.Xc
+Delete a shared network.
+.It Xo
+.Cm shared_network list
+.Xc
+List all configured shared networks.
+.El
+
+.Ss Groups of settings
+These represent DHCP options or other settings to be applied to various hosts.
+If not specified when optional, the
+.Em default
+group is used; it cannot be deleted.  Groups are deleted automatically, when the last user stops using them.  The order of matching groups is described in
+.Xr dhcpd 8 .
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm group
+.Cm create Ar name
+.Xc
+Create a named group.
+.It Xo
+.Cm group
+.Pq Ic set Ns | Ns Ic unset
+.Ar name
+.Op Cm parent Ar name
+.Op Cm filename Ar path
+.Op Cm server-name Ar name
+.Op Cm next-server Ar IPv4-address
+.Xc
+Set or unset parameters to a group, or link it under a different group.  Loops will be treated as errors and reported.
+.It Xo
+.Cm group tlv-set Ar name
+.Pq Ic bytes Ns | Ns Ic IP
+.Ar type length value
+.Xc
+Set a DHCP option to be sent in this group.  If you need to enter
+.Cm bytes ,
+you need to ensure shell won't mangle your input.  Typing
+.Do
+tlv-set potazmo bytes 6 4 `printf
+.Qo
+\\xC0\\xA8\\x90\\x1E
+.Qc \`
+.Dc
+will set a DNS server of 192.168.144.30.
+Entering
+.Cm IP
+addresses is simpler, just use
+.Dq tlv-set potazmo IP 42 7 1.2.3.4
+and the seven character string will be parsed as an IP address using
+.Xr inet_aton 3
+and set as a NTP server.
+.It Xo
+.Cm group tlv-unset Ar name length types
+.Xc
+Unset
+.Ar len
+DHCP options in this group; their types are individual bytes in
+.Ar value .
+.El
+
+.Ss Subnets
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm subnet
+.Cm add Ar address/prefixlen
+.Op Cm shared_network Ar name
+.Op Cm group Ar name
+.Xc
+Add a subnet to a shared network, with any subnet-specific settings inside a group.
+.It Xo
+.Cm subnet
+.Cm delete Ar address/prefixlen
+.Op Cm shared_network Ar name
+.Xc
+Delete a subnet from a shared network.  All its hosts will be deleted with it, leases will stay until expiration.
+.It Xo
+.Cm subnet list
+.Op Cm shared_network Ar name
+.Xc
+List all subnets in a shared network.
+.It Xo
+.Cm subnet show Ar address/prefixlen
+.Op Cm shared_network Ar name
+.Xc
+Prints out subnet's static host entries and ranges for dynamic allocation.
+.It Xo
+.Cm subnet set Ar address/prefixlen
+.Cm range Ar start Op Ar end
+.Op Cm shared_network Ar name
+.Xc
+Add a range of addresses for dynamic lease assignment.  If
+.Ar end
+is not specified, the range spans to the end of the subnet.
+.It Xo
+.Cm subnet unset Ar address/prefixlen
+.Cm range Ar start Op Ar end
+.Op Cm shared_network Ar name
+.Xc
+Delete a range of addresses for dynamic lease assignment.  Current leases will stay until expiration.
+.El
+
+.Ss Hosts
+Static host entries can optionally be specified with a group of host-specific DHCP settings.
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm host
+.Cm add Ar IPv4-address
+.Ar MAC-address
+.Op Cm group Ar name
+.Xc
+Add a static host entry.
+.It Xo
+.Cm host
+.Cm delete Ar MAC-address
+.Xc
+Delete a static host entry.  If present, its lease will stay until expiration.
+.El
+
+.Ss Interface-related commands
+Whenever an interface with one of the specified names arrives to the system, the daemon will use
+.Xr bpf 4
+to service DHCP on it.
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm interface
+.Cm add Ar name
+.Op Cm shared_network Ar name
+.Xc
+Add
+.Ar name
+to the list of listening interfaces.  Packets that were not relayed will
+appear in the specified shared network.
+.It Xo
+.Cm interface
+.Cm delete Ar name
+.Xc
+Stop being interested in this interface for listening.
+.It Xo
+.Cm interface list
+.Xc
+List all interfaces for listening with their
+.Dq non-relay
+shared networks.
+.El
+
+.Ss UDP/IPv4 socket-related commands
+Whenever is one of the specified IPv4 addresses configured in the system,
+the daemon will use a
+.Xr udp 4
+socket (privileged port 67) to service DHCP on it.
+This may require additional
+.Xr pf 4
+configuration to allow DHCP traffic in.
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm address add Ar IPv4-address
+.Op Cm shared_network Ar name
+.Xc
+Add
+.Ar IPv4-address
+to the list of listening addresses.  Packets that were not relayed will
+appear in the specified shared network.
+.It Xo
+.Cm address
+.Cm delete Ar IPv4-address
+.Xc
+Stop being interested in this IPv4 address for listening on UDP.
+.It Xo
+.Cm address list
+.Xc
+List all addresses for UDP listening with their shared networks.
+.El
+
+.Ss Relays
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm relay
+.Pq Ar relay-IPv4-address Ns | Ns Cm any
+.Op Cm stop
+.Cm to Ar listening-IPv4-address
+.Op Cm shared_network Ar name
+.Xc
+.Em BOOTREQUEST
+packets arriving from a specified relay (or from any other relay, except for all zeroes) to the UDP socket
+listener will be treated as coming from shared network
+.Ar name .
+The keyword
+.Cm stop
+deletes that mapping.
+This is used to distinguish remote sites among which clients migrate often.  For example, different 10.0.0.0/8 networks can be served using a single UDP listener.
+.El
+
+.Ss Miscellaneous commands
+.Bl -tag -width xxxxxx
+.It Xo
+.Cm shell
+.Xc
+Enter a mode where multiple commands may be entered, separated by newlines, and sent during one program invocation over one socket connection.  The shell exits by entering either
+.Cm shell
+or
+.Cm exit .
+.It Xo
+.Cm lease
+.Xc
+Print out the current lease table.
+.It Xo
+.Cm lease release
+.Ar MAC-address
+.Op Cm shared_network Ar name
+.Xc
+Kills a lease entry without notifying the client, as if she sent DHCPRELEASE.
+.El
+
+.Sh FILES
+.Bl -tag -width "/var/run/dhcpd.sockXXX" -compact
+.It Pa /etc/dhcpd.conf
+default
+.Xr dhcpd 8
+configuration file
+.It Pa /var/run/dhcpd.sock
+default
+.Xr dhcpd 8
+control socket
+.El
+.Sh EXAMPLES
+.Bl -item
+.It
+Be careful when specifying weird characters in TLVs, such as new-lines:
+.Bd -literal -offset indent
+# dhcpctl group tlv-set bytes windoze-machines 252 1 "
+"
+.Ed
+Silence the DHCPINFORMs asking about auto-configured proxy servers
+using the Web Proxy Autodiscovery Protocol (WPAD) by sending a newline.
+.It
+If you wish to stop sending certain options,
+.Cm tlv-unset
+uses
+.Cm bytes
+format:
+.Bd -literal -offset indent
+# dhcpctl group tlv-unset gg 5 `printf \&"\\xFA\\xFB\\xFC\\xFD\\xFE\&"\&`
+.Ed
+Tell the group
+.Dq gg
+to stop sending options 250, 251, 252, 253, 254.
+.It
+A typical configuration with a router, NTP and DNS servers,
+DNS domain settings and a diskless station might look like this:
+.Bd -literal -offset indent
+# echo "group create mynetwork
+group tlv-set mynetwork IP 3 13 192.168.155.1
+group tlv-set mynetwork IP 6 10 192.0.2.45
+group tlv-set mynetwork bytes 15 10 potazmo.cz
+group tlv-set mynetwork IP 42 10 192.0.2.45
+
+subnet add 192.168.155.0/24 group mynetwork
+subnet set 192.168.155.0/24 range 192.168.155.200
+
+group create diskless
+group set diskless filename pxeboot next-server 192.0.2.2
+host add 192.168.155.144 00:11:22:33:44:55 group diskless
+
+interface add em0
+exit" | dhcpctl shell
+.Ed
+If a DHCPDISCOVER, DHCPREQUEST or DHCPINFORM messages come from a host
+with client's hardware address of 00:11:22:33:44:55, the responses allow
+it to boot the specified file off the network, while sharing
+subnet-specific parameters with the dynamic leases.
+Don't forget to include the listening interface!
+.El
+.Sh SEE ALSO
+.Xr dhcpd.conf 5 ,
+.Xr dhcpd 8
+.Sh STANDARDS
+.Bl -bullet
+.It
+.Rs
+.%A Bill Croft, John Gilmore
+.%D September 1985
+.%R RFC 951
+.%T Bootstrap Protocol (BOOTP)
+.Re
+.It
+.Rs
+.%A W. Wimer
+.%D October 1993
+.%R RFC 1542
+.%T Clarifications and Extensions for the Bootstrap Protocol
+.Re
+.It
+.Rs
+.%A R. Droms
+.%D March 1997
+.%R RFC 2131
+.%T Dynamic Host Configuration Protocol (DHCP)
+.Re
+.It
+.Rs
+.%A S. Alexander, R. Droms
+.%D March 1997
+.%R RFC 2132
+.%T DHCP Options and BOOTP Vendor Extensions
+.Re
+.It
+.Rs
+.%A M. Patrick
+.%D January 2001
+.%R RFC 3046
+.%T DHCP Relay Agent Information Option
+.Re
+.El
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 5.6 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Martin Pelikan Aq Mt pelikan@openbsd.org
+as a project in Google Summer of Code 2014.
+.Sh BUGS
+The current way of specifying TLVs in group options makes it hard or impossible to securely enter certain values from a shell command line.  It needs to be replaced with some kind of per-option syntactic sugar, like the one in a configuration file parser.

@@ -1,0 +1,182 @@
+.\"	$OpenBSD$
+.\"
+.\" Copyright (c) 2014 Martin Pelikan <pelikan@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate$
+.Dt DHCPD 8
+.Os
+.Sh NAME
+.Nm dhcpd
+.Nd Dynamic Host Configuration Protocol daemon
+.Sh SYNOPSIS
+.Nm dhcpd
+.Op Fl d
+.Op Fl s Ar path-to-control-socket
+.Sh DESCRIPTION
+.Nm
+is a daemon which manages a view of the network topology and assigns IPv4
+addresses accordingly using the Dynamic Host Configuration Protocol
+.Pq DHCPv4 .
+The DHCP protocol evolved from an older Bootstrap Protocol
+.Pq BOOTP
+by adding
+support for options specifying more configuration parameters and the notion
+of (possibly temporary) leasing of addresses to clients.
+.Pp
+.Nm
+plays the role of a
+.Dq DHCP server
+and its configuration is being manipulated by a
+.Dq controller
+such as
+.Xr dhcpctl 8 .
+.Dq Clients
+are hosts on the network asking either for address assignment or just various
+configuration parameters (using the DHCPINFORM message).
+.Pp
+The term
+.Dq shared network
+represents a physical network segment (e. g. a collision domain or a
+.Xr vlan 4 )
+with one or more subnets operating on it.  Clients' parameters are looked up
+based on which shared network they appear on.
+Both BOOTP and DHCP support relaying of packets
+from remote networks (e. g. using cheap equipment without knowledge about the
+topology) and the combination of a local IPv4 address and the relay
+.Dq gateway interface
+address determine the particular shared network that packet came from.
+.Pp
+To deliver packets
+to hosts that don't yet have an
+.Xr arp 4
+entry,
+.Nm
+uses
+.Xr bpf 4
+on interfaces specified by the controllers.  Standard
+.Xr udp 4
+sockets are supported as well.  Each of these endpoints belongs to some shared
+network and additional rules depending on relay agent's IPv4 address can be
+specified to steer packets into different ones.
+.Sh CONFIGURATION IN GROUPS OF SETTINGS
+Configuration to be transmitted to clients is stored in chains of
+.Em groups .
+Groups can be attached to shared networks, subnets or individual hosts
+to provide settings specific to them, as well as floating to provide settings
+independent on these categories.  For each parameter, the lookup order is as
+follows:
+.Bl -enum
+.It
+If a host-specific group is set, use settings from it and then its parents.
+.It
+If a subnet-specific group is set, use settings from it and then its parents.
+.It
+If a shared network-specific group is set, use settings from it and then its
+parents.
+.It
+As a last resort, settings from the
+.Dq global
+.Em default
+group is filled in; it can't have any parent.  (Group not set is
+internally represented as the
+.Em default
+sentinel, because it's always last.)
+.El
+.Pp
+When a group is linked from multiple places, its parent chain will be used
+from all of them.  Nested groups therefore represent a 'subset-of' relationship.
+Loops are detected and not permitted.
+.\" The following requests should be uncommented and used where appropriate.
+.\" .Sh CONTEXT
+.\" For section 9 functions only.
+.\" .Sh RETURN VALUES
+.\" For sections 2, 3, and 9 function return values only.
+.\" .Sh ENVIRONMENT
+.\" For sections 1, 6, 7, and 8 only.
+.Sh FILES
+.Bl -tag -width "/var/run/dhcpd.sockXXX" -compact
+.It Pa /etc/dhcpd.conf
+default
+.Nm
+configuration file (not yet supported, need to add a parser into
+.Xr dhcpctl 8 ) .
+.It Pa /var/run/dhcpd.sock
+default
+.Nm
+control socket
+.El
+.Sh SEE ALSO
+.Xr dhcpd.conf 8 ,
+.Xr dhcpctl 8 ,
+.Xr dhcrelay 8 ,
+.Xr dhclient 8 ,
+.Xr dhclient.leases 5 ,
+.Xr pxeboot 8
+.Sh STANDARDS
+.Bl -bullet
+.It
+.Rs
+.%A Bill Croft, John Gilmore
+.%D September 1985
+.%R RFC 951
+.%T Bootstrap Protocol (BOOTP)
+.Re
+.It
+.Rs
+.%A W. Wimer
+.%D October 1993
+.%R RFC 1542
+.%T Clarifications and Extensions for the Bootstrap Protocol
+.Re
+.It
+.Rs
+.%A R. Droms
+.%D March 1997
+.%R RFC 2131
+.%T Dynamic Host Configuration Protocol (DHCP)
+.Re
+.It
+.Rs
+.%A S. Alexander, R. Droms
+.%D March 1997
+.%R RFC 2132
+.%T DHCP Options and BOOTP Vendor Extensions
+.Re
+.It
+.Rs
+.%A M. Patrick
+.%D January 2001
+.%R RFC 3046
+.%T DHCP Relay Agent Information Option
+.Re
+.El
+.Sh HISTORY
+The
+.Nm
+program first appeared in
+.Ox 5.6 .
+.Sh AUTHORS
+The
+.Nm
+program was written by
+.An Martin Pelikan Aq Mt pelikan@openbsd.org
+as a project in Google Summer of Code 2014.
+.\" .Sh CAVEATS
+.Sh BUGS
+When the privileged child receives SIGHUP, a
+.Xr dhcpctl 8
+instance is spawned to reload configuration.  Because there isn't any final
+means of configuration, nor any parser of any configuration files, this is
+currently a no-op.  Status of that process is logged in the system log.
