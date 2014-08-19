@@ -69,6 +69,7 @@ struct parse_result {
 	char		 filename[BOOTP_FILE];
 	char		 sname[BOOTP_SNAME];
 	struct ether_addr mac;
+	char		 syntax[10];
 	struct in_addr	 ipv4_1;
 	struct in_addr	 ipv4_2;
 	struct in_addr	 network;

@@ -740,10 +740,10 @@ do_group_set(struct parse_result *res)
 	size_t len;
 
 	if (res->opt_type) {
-		if (strcmp(res->filename, "bytes") == 0) {
+		if (strcmp(res->syntax, "bytes") == 0) {
 			/* XXX Pray there isn't any overflow. */
 		}
-		else if (strcmp(res->filename, "IP") == 0) {
+		else if (strcmp(res->syntax, "IP") == 0) {
 			struct in_addr a;
 
 			if (inet_aton((char *) res->opt_value, &a) == 0)

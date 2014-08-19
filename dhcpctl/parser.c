@@ -44,6 +44,7 @@ enum token_type {
 	IPv4_FIRST,
 	IPv4_SECOND,
 	MAC,
+	SYNTAX,
 	OPT_TYPE,
 	OPT_LENGTH,
 	OPT_VALUE,
@@ -201,9 +202,8 @@ const struct token t_group_tlv_[] = {
 	{ OPT_TYPE,	"",		NONE,		t_group_lv},
 	{ ENDTOKEN,	"",		NONE,		NULL}
 };
-/* XXX temporary string-reusing hook saying how should we parse it */
 const struct token t_group_tlv[] = {
-	{ FILENAME,	"",		NONE,		t_group_tlv_},
+	{ SYNTAX,	"",		NONE,		t_group_tlv_},
 	{ ENDTOKEN,	"",		NONE,		NULL}
 };
 
@@ -433,6 +433,13 @@ match_token(int *argc, char **argv[], const struct token table[])
 		case PARENT:
 			res.flags |= GROUP_WANT_PARENT;
 			/* FALLTHROUGH */
+		case SYNTAX:
+			if (word != NULL) {
+				match++;
+				t = &table[i];
+				strlcpy(res.syntax, word, sizeof res.syntax);
+			}
+			break;
 		case STRING:
 			if (word != NULL) {
 				match++;
@@ -546,6 +553,9 @@ show_valid_args(const struct token table[])
 		case FILENAME:
 		case SNAME:
 			fprintf(stderr, "  <string>\n");
+			break;
+		case SYNTAX:
+			fprintf(stderr, "  (bytes|IP)\n");
 			break;
 		case GROUP:
 			fprintf(stderr, "  <group-name>\n");
