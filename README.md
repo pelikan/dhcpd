@@ -27,6 +27,7 @@ a relay agent (HP A5800 Switch) with a variety of clients:
 - TP-link TL-WR841N
 - TP-link TL-WR741N (makes 6 DHCPDISCOVERs before SELECTING)
 - some Belkin router ([without the backdoor](https://github.com/elvanderb/TCP-32764)) (gets a lease, then releases it, then re-discovers asking for the same one, all with xid 0x1)
+- Sony Bravia TV (option 57 violates ([RFC 2132](http://tools.ietf.org/html/rfc2132)); they probably wanted to write 9216 (0x2400) bytes and copied the length (0x02) byte on the left, which makes it look like 548 (0x0224) bytes, which of course is illegal)
 
 What we need now:
 =================
