@@ -578,7 +578,7 @@ udp_event(int fd, short ev, void *arg)
 	struct sockaddr_in	from;
 	socklen_t		fromlen = sizeof from;
 	struct request		req;
-	u_int8_t		buf[1514];
+	u_int8_t		buf[MTU];
 	ssize_t			n;
 
 	(void) ev;
