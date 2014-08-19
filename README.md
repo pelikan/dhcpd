@@ -8,7 +8,7 @@ The main driving force behind this was OpenBSD's Google Summer of Code 2014.
 Tested on OpenBSD/amd64 and OpenBSD/sparc64 both directly and through
 a relay agent (HP A5800 Switch) with a variety of clients:
 
-- Windows XP, 7
+- Windows XP, 7, Phone
 - dhcpcd 5.5.6 on Android
 - dhcpcd 6.4.2 on Linux
 - udhcpc 1.14.3 on Samsung TV
@@ -25,6 +25,7 @@ a relay agent (HP A5800 Switch) with a variety of clients:
 - Sony PlayStation 3
 - Pioneer VSX-921K
 - TP-link TL-WR841N
+- TP-link TL-WR741N (makes 6 DHCPDISCOVERs before SELECTING)
 
 What we need now:
 =================

@@ -129,6 +129,8 @@ bootp_output(struct request *req, struct reply *reply)
 	/* RFC 1542, section 3.3 */
 	reply->pkt.bootp.ciaddr = req->bootp->ciaddr;
 	reply->pkt.bootp.yiaddr = reply->lease->address;
+	/* RFC 1542, section 4.1.2, "to identify logical interface" */
+	reply->pkt.bootp.giaddr = req->bootp->giaddr;
 
 	if (reply->next_server)
 		memcpy(&reply->pkt.bootp.siaddr, reply->next_server,
