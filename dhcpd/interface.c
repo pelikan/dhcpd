@@ -627,7 +627,7 @@ ipv4_addr_assign_udp(u_int32_t *ipv4, int fd)
 	}
 
 	close(fd);
-	log_warn("closed UDP socket %d, unknown %s", fd, inet_ntoa(na->ipv4));
+	log_warn("closed UDP socket %d, unknown %s", fd, inet_ntoa(fake.ipv4));
 	return;
 
  assign:
