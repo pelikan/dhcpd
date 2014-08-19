@@ -225,7 +225,7 @@ dhcprequest_unknown_lease(struct request *req)
 
 	/* If this is a static host entry, pretend a DHCPDISCOVER happened. */
 	if ((h = shared_network_find_mac(req)) != NULL)
-		return lease_new(h->subnet, h->address, &h->mac, &default_group,
+		return lease_new(h->subnet, h->address, &h->mac, h->group,
 		    OFFER_LEASE_TIME);
 
 	/* If this belongs to a dynamic range, and is unallocated, fake it. */
