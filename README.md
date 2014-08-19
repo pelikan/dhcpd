@@ -26,6 +26,7 @@ a relay agent (HP A5800 Switch) with a variety of clients:
 - Pioneer VSX-921K
 - TP-link TL-WR841N
 - TP-link TL-WR741N (makes 6 DHCPDISCOVERs before SELECTING)
+- some Belkin router ([without the backdoor](https://github.com/elvanderb/TCP-32764)) (gets a lease, then releases it, then re-discovers asking for the same one, all with xid 0x1)
 
 What we need now:
 =================
@@ -37,6 +38,7 @@ What we need now:
   definitely happen after the code has been running for a while, and I had
   some time off the code base.
 - Respect Max Message Size option.  Will happen after a while.
+- An easily fetchable list of recently unsatisfied clients (MAC, hostname).
 - Support other operating systems.  I have working code for Windows + Linux
   but need to put it all together.  My previous DHCP server manipulated ARP
   instead of sending stuff on BPF.  Then it's valgrind time :-)
