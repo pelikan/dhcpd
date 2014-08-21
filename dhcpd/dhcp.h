@@ -2,10 +2,11 @@
  * Bootstrap Protocol (RFC 951)
  * Dynamic Host Configuration Protocol (RFC 2131)
  */
-#define BOOTP_SERVER_PORT	67
-#define BOOTP_CLIENT_PORT	68
-#define BOOTP_SNAME	64
-#define BOOTP_FILE	128
+#define	BOOTP_SERVER_PORT	67
+#define	BOOTP_CLIENT_PORT	68
+#define	BOOTP_SNAME	64
+#define	BOOTP_FILE	128
+#define	BOOTP_VEND	64
 struct bootp {
 	u_int8_t	op;	/* Message op code / message type */
 	u_int8_t	htype;	/* Hardware address type */

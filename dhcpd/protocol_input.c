@@ -195,11 +195,12 @@ bootp_input(u_int8_t *data, size_t len, struct request *req)
 				u_int32_t	magic;
 				u_int8_t	options[308]; /* minimum */
 			}		dhcp;
-			u_int8_t	bootp_vend[64]; /* RFC 951 */
+			u_int8_t	bootp_vend[BOOTP_VEND]; /* RFC 951 */
 		}		tail;
 	} *packet = (void *) data;
 
-	if (len > MTU || len <= sizeof packet->bootp) {
+	if (len > MTU || len < sizeof packet->bootp + 4) {
+		++stats[STATS_BOOTP_BAD_LEN];
 		log_warnx("%s: rcvd packet of length %zu", __func__, len);
 		return (-1);
 	}
@@ -208,17 +209,17 @@ bootp_input(u_int8_t *data, size_t len, struct request *req)
 
 	if (packet->bootp.op != BOOTREQUEST) {
 		++stats[STATS_BOOTP_NOT_BOOTREQUEST];
-		log_info("it is NOT a BOOTREQUEST, but %u", packet->bootp.op);
+		log_info("NOT a BOOTREQUEST, but %u", packet->bootp.op);
 		return (-1);
 	}
 	if (packet->bootp.htype != HTYPE_ETHERNET) {
 		++stats[STATS_BOOTP_BAD_HTYPE];
-		log_info("it is NOT a HTYPE_ETHERNET, but %u", packet->bootp.htype);
+		log_info("NOT a HTYPE_ETHERNET, but %u", packet->bootp.htype);
 		return (-1);
 	}
 	if (packet->bootp.hlen != ETHER_ADDR_LEN) {
 		++stats[STATS_BOOTP_BAD_HLEN];
-		log_info("it is NOT a ETHER_ADDR_LEN, but %u", packet->bootp.hlen);
+		log_info("NOT a ETHER_ADDR_LEN, but %u", packet->bootp.hlen);
 		return (-1);
 	}
 
@@ -232,11 +233,18 @@ bootp_input(u_int8_t *data, size_t len, struct request *req)
 		return (-1);
 	}
 
-	/* No space for DHCP magic, or no magic at all?  It's a BOOTP packet. */
-	if (len <= sizeof packet->bootp + 4 ||
-	    packet->tail.dhcp.magic != ntohl(DHCP_OPTION_START_MAGIC)) {
-		log_info("it is NOT a DHCP packet");
+	/* No DHCP magic?  It's a BOOTP packet. */
+	if (packet->tail.dhcp.magic != ntohl(DHCP_OPTION_START_MAGIC)) {
 		++stats[STATS_BOOTP_ONLY];
+
+		/* Strip away bits of the BOOTP header we parsed. */
+		if ((len -= sizeof(struct bootp)) < BOOTP_VEND) {
+			++stats[STATS_BOOTP_BAD_LEN];
+			log_info("%s: vendor options only %zu", __func__, len);
+			return (-1);
+		}
+
+		return bootrequest(req, &packet->tail.bootp_vend, len);
 	}
 	else {
 		/*
@@ -245,9 +253,6 @@ bootp_input(u_int8_t *data, size_t len, struct request *req)
 		 */
 		len -= (char *) &packet->tail.dhcp.options - (char *) packet;
 
-		if (dhcp_input(packet->tail.dhcp.options, len, req) < 0)
-			return (-1);
+		return dhcp_input(packet->tail.dhcp.options, len, req);
 	}
-
-	return ((int) len);
 }

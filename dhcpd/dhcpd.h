@@ -339,6 +339,7 @@ enum {
 	STATS_IP_NO_ADDRESS,
 	STATS_IP_BAD_LEN,
 	STATS_UDP_BAD_LEN,
+	STATS_BOOTP_BAD_LEN,
 	STATS_DHCP_BAD_LEN,
 	STATS_DHCP_NOT_FOR_US,
 	STATS_BOOTP_ONLY,
@@ -481,6 +482,7 @@ int	dhcp_options_parse(u_int8_t *, size_t, u_int8_t **);
 int	bootp_input(u_int8_t *, size_t, struct request *);
 
 /* protocol_logic.c */
+int	bootrequest(struct request *, void *, ssize_t);
 int	dhcpdecline(struct request *);
 int	dhcpdiscover(struct request *);
 int	dhcpinform(struct request *);

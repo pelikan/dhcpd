@@ -407,3 +407,43 @@ dhcpinform(struct request *req)
 
 	return dhcpack(req, &fake_lease, REPLY_TO_DHCPINFORM);
 }
+
+int
+bootrequest(struct request *req, void *vendor, ssize_t len)
+{
+	struct reply	 reply;
+	struct lease	 fake;
+	struct host	*h;
+	u_int32_t	*magic = vendor;
+
+	if ((h = shared_network_find_mac(req)) == NULL) {
+		log_info("%s: BOOTREQUEST: unsatisfied %s, magic %#x, len %zd",
+		    req->shared->name, ether_ntoa(&req->bootp->chaddr.ether),
+		    ntohl(magic[0]), len);
+		return (0);
+	}
+
+	log_info("%s: BOOTREQUEST->BOOTREPLY: %s -> %s, magic %#x, len %zd",
+	    req->shared->name, ether_ntoa(&req->bootp->chaddr.ether),
+	    inet_ntoa(h->address), ntohl(magic[0]), len);
+
+	memset(&fake, 0, sizeof fake);
+	fake.host = h;
+	fake.address = h->address;
+	fake.group = h->group;
+
+	memset(&reply, 0, sizeof reply);
+	reply.lease = &fake;
+	reply.off = BOOTP_VEND;
+
+	/* We still need filename, servername and next-server. */
+	if (h->group != &default_group)
+		group_copyout_chain(&reply, h->group);
+	if (h->subnet->group != &default_group)
+		group_copyout_chain(&reply, h->subnet->group);
+	if (req->shared->group != &default_group)
+		group_copyout_chain(&reply, req->shared->group);
+	group_copyout_chain(&reply, &default_group);
+
+	return bootp_output(req, &reply);
+}

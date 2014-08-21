@@ -849,6 +849,7 @@ do_extra_stats(u_int64_t *s)
 
 	printf("packets.badlength.ip=%llu\n",	s[STATS_IP_BAD_LEN]);
 	printf("packets.badlength.udp=%llu\n",	s[STATS_UDP_BAD_LEN]);
+	printf("packets.badlength.bootp=%llu\n",s[STATS_BOOTP_BAD_LEN]);
 	printf("packets.badlength.dhcp=%llu\n",	s[STATS_DHCP_BAD_LEN]);
 
 	printf("packets.bootp.only=%llu\n",	s[STATS_BOOTP_ONLY]);
