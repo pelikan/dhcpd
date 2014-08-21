@@ -168,17 +168,23 @@ dhcp_input(u_int8_t *data, size_t len, struct request *req)
 
 	switch ((type = req->dhcp_opts[DHCP_OPT_MESSAGE_TYPE][1])) {
 	case DHCPDISCOVER:
+		++stats[STATS_DISCOVERS];
 		return dhcpdiscover(req);
 	case DHCPREQUEST:
+		++stats[STATS_REQUESTS];
 		return dhcprequest(req);
 	case DHCPDECLINE:
+		++stats[STATS_DECLINES];
 		return dhcpdecline(req);
 	case DHCPRELEASE:
+		++stats[STATS_RELEASES];
 		return dhcprelease(req);
 	case DHCPINFORM:
+		++stats[STATS_INFORMS];
 		return dhcpinform(req);
 	default:
-		log_info("message type %d not for us.", type);
+		++stats[STATS_DHCP_BAD_MESSAGE_TYPE];
+		log_info("%s: message type %d not recognized", __func__, type);
 		break;
 	}
 
@@ -235,15 +241,16 @@ bootp_input(u_int8_t *data, size_t len, struct request *req)
 
 	/* No DHCP magic?  It's a BOOTP packet. */
 	if (packet->tail.dhcp.magic != ntohl(DHCP_OPTION_START_MAGIC)) {
-		++stats[STATS_BOOTP_ONLY];
-
-		/* Strip away bits of the BOOTP header we parsed. */
+		/*
+		 * Strip away bits of the BOOTP header we parsed.
+		 */
 		if ((len -= sizeof(struct bootp)) < BOOTP_VEND) {
 			++stats[STATS_BOOTP_BAD_LEN];
 			log_info("%s: vendor options only %zu", __func__, len);
 			return (-1);
 		}
 
+		++stats[STATS_BOOTREQUESTS];
 		return bootrequest(req, &packet->tail.bootp_vend, len);
 	}
 	else {

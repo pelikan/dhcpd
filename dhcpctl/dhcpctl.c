@@ -830,6 +830,8 @@ do_extra_stats(u_int64_t *s)
 	printf("uptime=%llu\n",		uptime);
 	printf("uptime.human=%s\n",	print_time(uptime));
 	printf("leases.current=%llu\n",		s[STATS_LEASES_PRESENT]);
+	printf("packets.received.bootrequests=%llu\n",	s[STATS_BOOTREQUESTS]);
+	printf("packets.sent.bootreplies=%llu\n",	s[STATS_BOOTREPLIES]);
 	printf("packets.received.discovers=%llu\n",	s[STATS_DISCOVERS]);
 	printf("packets.sent.offers=%llu\n",		s[STATS_OFFERS]);
 	printf("packets.received.requests=%llu\n",	s[STATS_REQUESTS]);
@@ -852,12 +854,12 @@ do_extra_stats(u_int64_t *s)
 	printf("packets.badlength.bootp=%llu\n",s[STATS_BOOTP_BAD_LEN]);
 	printf("packets.badlength.dhcp=%llu\n",	s[STATS_DHCP_BAD_LEN]);
 
-	printf("packets.bootp.only=%llu\n",	s[STATS_BOOTP_ONLY]);
 	printf("packets.bootp.nrequest=%llu\n",	s[STATS_BOOTP_NOT_BOOTREQUEST]);
 	printf("packets.bootp.badhtype=%llu\n",	s[STATS_BOOTP_BAD_HTYPE]);
 	printf("packets.bootp.badhlen=%llu\n",	s[STATS_BOOTP_BAD_HLEN]);
 	printf("packets.bootp.badrelay=%llu\n",	s[STATS_BOOTP_BAD_RELAY]);
 
+	printf("packets.dhcp.badmsgtype=%llu\n",s[STATS_DHCP_BAD_MESSAGE_TYPE]);
 	printf("packets.dhcp.notours=%llu\n",	s[STATS_DHCP_NOT_FOR_US]);
 	printf("packets.dhcp.notfound=%llu\n",	s[STATS_DHCP_NOT_FOUND]);
 }

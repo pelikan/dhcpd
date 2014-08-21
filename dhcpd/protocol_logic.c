@@ -153,7 +153,7 @@ not_found(struct request *req, const char *where)
 	++stats[STATS_DHCP_NOT_FOUND];
 	log_info("%s: %s: couldn't satisfy MAC %s%s", req->shared->name, where,
 	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
-	return (-1);
+	return (0);
 }
 
 int
@@ -163,15 +163,11 @@ dhcpdiscover(struct request *req)
 	struct lease *l;
 	unsigned flags = 0;
 
-	++stats[STATS_DISCOVERS];
-	log_info("%s: DHCPDISCOVER: %s%s", req->shared->name,
-	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
-
 	/*
 	 * RFC 2131, 4.3.1: Try to satisfy whatever the client said she had.
 	 */
 	if ((l = lease_find_mac(req)))
-		return dhcpoffer(req, l, flags);
+		goto offer;
 
 	if ((h = shared_network_find_mac(req)) == NULL) {
 		if (req->dhcp_opts[DHCP_OPT_ADDR_REQUESTED] == NULL)
@@ -190,7 +186,6 @@ dhcpdiscover(struct request *req)
 		}
 		if (l == NULL)
 			return not_found(req, "DHCPDISCOVER, dynamic");
-		return dhcpoffer(req, l, flags);
 	}
 	else if (h->lease == NULL) {
 		h->lease = l = lease_new(h->subnet, h->address, &h->mac,
@@ -199,8 +194,10 @@ dhcpdiscover(struct request *req)
 			return not_found(req, "DHCPDISCOVER, static");
 		l->host = h;
 	}
-
-	return dhcpoffer(req, h->lease, flags);
+ offer:
+	log_info("%s: DHCPDISCOVER: %s%s", req->shared->name,
+	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
+	return dhcpoffer(req, l, flags);
 }
 
 static int
@@ -245,7 +242,6 @@ dhcprequest(struct request *req)
 	unsigned flags = 0;
 	const char *state = "RENEWING";
 
-	++stats[STATS_REQUESTS];
 	l = lease_find_mac(req);
 
 	/*
@@ -352,16 +348,15 @@ dhcpdecline(struct request *req)
 {
 	struct lease *l;
 
-	++stats[STATS_DECLINES];
 	log_info("%s: DHCPDECLINE: %s%s", req->shared->name,
 	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
 
 	if ((l = lease_find_mac(req))) {
 		if ((l = lease_decline(req, l)) == NULL)
-			return not_found(req, "dhcpdecline, new try");
+			return not_found(req, "DHCPDECLINE, new try");
 		return dhcpack(req, l, 0);
 	}
-	return not_found(req, __func__);
+	return not_found(req, "DHCPDECLINE");
 }
 
 int
@@ -369,7 +364,6 @@ dhcprelease(struct request *req)
 {
 	struct lease *l;
 
-	++stats[STATS_RELEASES];
 	log_info("%s: DHCPRELEASE: %s%s", req->shared->name,
 	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
 
@@ -383,7 +377,7 @@ dhcprelease(struct request *req)
 		log_info("releasing lease %s", inet_ntoa(l->address));
 		lease_free(l);
 	}
-	return not_found(req, __func__);
+	return not_found(req, "DHCPRELEASE");
 }
 
 int
@@ -392,19 +386,18 @@ dhcpinform(struct request *req)
 	struct in_addr ip = req->bootp->ciaddr;
 	struct lease fake_lease;
 
-	++stats[STATS_INFORMS];
-	log_info("%s: DHCPINFORM: %s%s", req->shared->name,
-	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
-
 	memset(&fake_lease, 0, sizeof fake_lease);
 	fake_lease.subnet = shared_network_find_subnet(req->shared, ip);
 	if (fake_lease.subnet == NULL)
-		return not_found(req, __func__);
+		return not_found(req, "DHCPINFORM");
 
 	fake_lease.host = subnet_find_host(fake_lease.subnet, ip);
 	fake_lease.address = req->bootp->ciaddr;
 	fake_lease.group = &default_group;
 
+	log_info("%s: DHCPINFORM: %s about %s%s", req->shared->name,
+	    ether_ntoa(&req->bootp->chaddr.ether),
+	    inet_ntoa(fake_lease.address), preview(req));
 	return dhcpack(req, &fake_lease, REPLY_TO_DHCPINFORM);
 }
 
@@ -445,5 +438,6 @@ bootrequest(struct request *req, void *vendor, ssize_t len)
 		group_copyout_chain(&reply, req->shared->group);
 	group_copyout_chain(&reply, &default_group);
 
+	++stats[STATS_BOOTREPLIES];
 	return bootp_output(req, &reply);
 }
