@@ -99,7 +99,7 @@ dhcpack(struct request *req, struct lease *l, unsigned flags)
 }
 
 static int
-dhcpnak(struct request *req)
+dhcpnak(struct request *req, const char *text)
 {
 	u_int8_t	 msgtype = DHCPNAK;
 	struct reply	 reply;
@@ -116,6 +116,8 @@ dhcpnak(struct request *req)
 		return (-1);
 	if (dhcp_add_tlv(&reply, DHCP_OPT_SERVER_ID, 4, &serverid.s_addr) < 0)
 		return (-1);
+	if (dhcp_add_tlv(&reply, DHCP_OPT_MESSAGE, strlen(text), text) < 0)
+		return (-1);
 	if (dhcp_add_tlv(&reply, DHCP_OPT_END, 0, NULL) < 0)
 		return (-1);
 
@@ -123,8 +125,8 @@ dhcpnak(struct request *req)
 	reply.pkt.bootp.flags |= BOOTP_FLAG_BROADCAST;
 
 	++stats[STATS_NAKS];
-	log_info("%s: DHCPNAK: %s", req->shared->name,
-	    ether_ntoa(&req->bootp->chaddr.ether));
+	log_info("%s: DHCPNAK: %s: %s", req->shared->name,
+	    ether_ntoa(&req->bootp->chaddr.ether), text);
 	return bootp_output(req, &reply);
 }
 
@@ -284,7 +286,7 @@ dhcprequest(struct request *req)
 				    "didn't request IP %s", req->shared->name,
 				    ether_ntoa(&req->bootp->chaddr.ether),
 				    preview(req), inet_ntoa(l->address));
-				return dhcpnak(req);
+				return dhcpnak(req, "lease has a different IP");
 			}
 		}
 		/*
@@ -320,10 +322,10 @@ dhcprequest(struct request *req)
 		case (0):
 			log_info("%s: SELECTING different requested IP than %s",
 			    __func__, inet_ntoa(l->address));
-			return dhcpnak(req);
+			return dhcpnak(req, "lease has a different IP");
 		case (-1):
 			log_info("%s: no requested IP in SELECTING", __func__);
-			return dhcpnak(req);
+			return dhcpnak(req, "no requested IP in SELECTING");
 		}
 
 		if (l->state != OFFERED)
@@ -336,11 +338,11 @@ dhcprequest(struct request *req)
  invalid:
 	log_info("%s: DHCPREQUEST %s (invalid): %s%s", req->shared->name,
 	    state, ether_ntoa(&req->bootp->chaddr.ether), preview(req));
-	return dhcpnak(req);
+	return dhcpnak(req, "invalid BOOTREQUEST packet, see RFC 2131");
 
  notfound:
 	not_found(req, "DHCPREQUEST");
-	return dhcpnak(req);
+	return dhcpnak(req, "your MAC address wasn't found in our database");
 }
 
 int

@@ -34,10 +34,6 @@ What we need now:
 - a proper configuration file parser (Grégoire Duchêne was working on that
   in another GSoC project) integrated into dhcpctl + the format documented
 - maybe transaction support will be needed to keep the reload process sane
-- DHCPNAK can send Messages in plain text.  It isn't just about adding the
-  const char *, I need fresh perspective on how NAKs currently work.  Will
-  definitely happen after the code has been running for a while, and I had
-  some time off the code base.
 - Support other operating systems.  I have working code for Windows + Linux
   but need to put it all together.  My previous DHCP server manipulated ARP
   instead of sending stuff on BPF.  Then it's valgrind time :-)

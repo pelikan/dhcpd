@@ -99,7 +99,7 @@ dhcp_fill_options(struct request *req, struct reply *reply, struct group *g)
 
 /* Currently we don't do the magic with @reply->bootp.{sname,filename} reuse. */
 int
-dhcp_add_tlv(struct reply *reply, u_int8_t type, u_int8_t len, void *p)
+dhcp_add_tlv(struct reply *reply, u_int8_t type, u_int8_t len, const void *p)
 {
 	unsigned off = reply->off;
 	unsigned noff = off + (len ? len + 2 : 1);

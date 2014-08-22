@@ -496,7 +496,7 @@ int	dhcprequest(struct request *);
 /* protocol_output.c */
 int	bootp_output(struct request *, struct reply *);
 int	dhcp_output(struct request *, struct reply *);
-int	dhcp_add_tlv(struct reply *, u_int8_t, u_int8_t, void *);
+int	dhcp_add_tlv(struct reply *, u_int8_t, u_int8_t, const void *);
 int	dhcp_fill_options(struct request *, struct reply *, struct group *);
 
 /* unsatisfied.c */
