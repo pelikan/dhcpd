@@ -15,6 +15,7 @@
  */
 
 #include <arpa/inet.h>
+#include <stdio.h>
 #include <string.h>
 #include <vis.h>
 
@@ -407,12 +408,14 @@ bootrequest(struct request *req, void *vendor, ssize_t len)
 	struct reply	 reply;
 	struct lease	 fake;
 	struct host	*h;
-	u_int32_t	*magic = vendor;
+	u_int32_t	*magic = vendor, netmask;
 
 	if ((h = shared_network_find_mac(req)) == NULL) {
-		log_info("%s: BOOTREQUEST: unsatisfied %s, magic %#x, len %zd",
-		    req->shared->name, ether_ntoa(&req->bootp->chaddr.ether),
+		static char pview[48];
+
+		snprintf(pview, sizeof pview, " magic %#x, len %zd",
 		    ntohl(magic[0]), len);
+		unsatisfied_log(req, "BOOTREQUEST", pview);
 		return (0);
 	}
 
@@ -424,19 +427,33 @@ bootrequest(struct request *req, void *vendor, ssize_t len)
 	fake.host = h;
 	fake.address = h->address;
 	fake.group = h->group;
+	fake.subnet = h->subnet;
 
 	memset(&reply, 0, sizeof reply);
 	reply.lease = &fake;
-	reply.off = BOOTP_VEND;
 
-	/* We still need filename, servername and next-server. */
-	if (h->group != &default_group)
-		group_copyout_chain(&reply, h->group);
-	if (h->subnet->group != &default_group)
-		group_copyout_chain(&reply, h->subnet->group);
-	if (req->shared->group != &default_group)
-		group_copyout_chain(&reply, req->shared->group);
-	group_copyout_chain(&reply, &default_group);
+	/*
+	 * RFC 1048 and 1534 say that we're allowed to fill the vendor space
+	 * with DHCP options, but its size should stay fixed.
+	 */
+	if (dhcp_output(req, &reply) < 0)
+		return (-1);
+	reply.maxsize = BOOTP_VEND;
+
+	netmask = htonl(plen2mask32(h->subnet->prefixlen));
+	if (dhcp_add_tlv(&reply, DHCP_OPT_NETWORK_MASK, 4, &netmask) < 0)
+		return (-1);
+	if (dhcp_fill_options(req, &reply, h->group) < 0) {
+		/* Space left for the End option? */
+		if (reply.off > BOOTP_VEND - 1)
+			return (-1);
+	}
+	if (dhcp_add_tlv(&reply, DHCP_OPT_END, 0, NULL) < 0)
+		return (-1);
+
+	/* Pad the rest of the option with zeroes. */
+	if (reply.off < BOOTP_VEND)
+		reply.off = BOOTP_VEND;
 
 	++stats[STATS_BOOTREPLIES];
 	return bootp_output(req, &reply);
