@@ -104,10 +104,13 @@ dhcp_add_tlv(struct reply *reply, u_int8_t type, u_int8_t len, void *p)
 	unsigned off = reply->off;
 	unsigned noff = off + (len ? len + 2 : 1);
 
-	if (noff >= sizeof reply->pkt.option_space) {
+	if (reply->maxsize < BOOTP_VEND)
+		fatalx("reply maximum message size not filled in/too small");
+
+	if (noff >= (unsigned) reply->maxsize) {
 		++stats[STATS_DHCP_NO_SPACE];
-		log_warnx("%s: option %d too big for %d: %d",
-		    __func__, type, off, len);
+		log_warnx("%s: option %d too big for %d: %d, limit %d",
+		    __func__, type, off, len, reply->maxsize);
 		return (-1);
 	}
 
@@ -158,13 +161,40 @@ int
 dhcp_output(struct request *req, struct reply *reply)
 {
 	const u_int32_t magic = htonl(DHCP_OPTION_START_MAGIC);
+	u_int16_t maxsize = 0;
+	u_int8_t *p;
 
-	(void) req;
 	if (reply->off)
 		fatalx("dhcp_output called in the wrong place");
 
 	memcpy(reply->pkt.option_space, &magic, sizeof magic);
 	reply->off = 4;
+	reply->maxsize = sizeof reply->pkt.option_space;
 
+	/*
+	 * RFC 2132, section 9.10:  The minimum legal value is 576 octets.
+	 * RFC 3442, page 6: client SHOULD set the value to at least MTU [...]
+	 * Microsoft has got it wrong:
+	 * http://technet.microsoft.com/en-us/library/cc977417.aspx
+	 */
+	if ((p = req->dhcp_opts[DHCP_OPT_MAX_MSG_SIZE])) {
+		if (p[0] != 2)
+			goto illegal;
+		if ((maxsize = (p[1] << 8U) | p[2]) < 576)
+			goto illegal;
+		reply->maxsize = maxsize -
+		    ((char *) &reply->pkt.option_space - (char *) &reply->pkt);
+
+		if (reply->maxsize < BOOTP_VEND)
+			reply->maxsize = BOOTP_VEND;
+		if (reply->maxsize > (int) sizeof reply->pkt.option_space)
+			reply->maxsize = sizeof reply->pkt.option_space;
+	}
 	return (0);
+
+ illegal:
+	log_info("%s: ignoring Maximum DHCP Message Size %u, len %u: using %d",
+	    __func__, maxsize, p[0], reply->maxsize);
+	/* Let's ignore them, because Sony Bravia TVs send illegal values. */
+	return (1);
 }

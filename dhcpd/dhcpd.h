@@ -307,6 +307,7 @@ struct reply {
 
 	/* Stuff NOT to be sent. */
 	int			 off;
+	int			 maxsize;
 	struct lease		*lease;
 	u_int8_t		*options[256];
 	struct in_addr		*next_server;
