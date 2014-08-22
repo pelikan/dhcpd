@@ -151,8 +151,7 @@ static int
 not_found(struct request *req, const char *where)
 {
 	++stats[STATS_DHCP_NOT_FOUND];
-	log_info("%s: %s: couldn't satisfy MAC %s%s", req->shared->name, where,
-	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
+	unsatisfied_log(req, where, preview(req));
 	return (0);
 }
 
@@ -364,9 +363,6 @@ dhcprelease(struct request *req)
 {
 	struct lease *l;
 
-	log_info("%s: DHCPRELEASE: %s%s", req->shared->name,
-	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
-
 	/*
 	 * XXX We might want to do more checks before letting attackers
 	 * XXX just killing valid leases remotely.  Any ideas what these
@@ -377,7 +373,11 @@ dhcprelease(struct request *req)
 		log_info("releasing lease %s", inet_ntoa(l->address));
 		lease_free(l);
 	}
-	return not_found(req, "DHCPRELEASE");
+
+	log_info("%s: DHCPRELEASE: %s %s%s", req->shared->name,
+	    l ? "released" : "no lease for",
+	    ether_ntoa(&req->bootp->chaddr.ether), preview(req));
+	return (0);
 }
 
 int

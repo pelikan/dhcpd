@@ -25,17 +25,18 @@
 
 #include "control.h"
 
-#define UNPRIVILEGED_USER	"_dhcp"
-#define CHROOT_PATH	"/var/empty"
-#define PATH_CTLSOCK	"/var/run/dhcpd.sock"
-#define PATH_DHCPCTL	"/usr/sbin/dhcpctl"
-#define POLL_TIMEOUT	(5 * 1000)
+#define	UNPRIVILEGED_USER	"_dhcp"
+#define	CHROOT_PATH	"/var/empty"
+#define	PATH_CTLSOCK	"/var/run/dhcpd.sock"
+#define	PATH_DHCPCTL	"/usr/sbin/dhcpctl"
+#define	POLL_TIMEOUT	(120 * 1000)
 #define	ERR_BUF_SIZE	(256)
 #define	MTU		(1518)
-#define DEFAULT_LEASE_TIME	86400
-#define OFFER_LEASE_TIME	30
+#define	DEFAULT_LEASE_TIME	86400
+#define	OFFER_LEASE_TIME	30
+#define	UNSATISFIED_EXPIRY	120
 
-#ifndef MIN
+#ifndef	MIN
 #define	MIN(a,b)	(((a) < (b)) ? (a) : (b))
 #endif
 
@@ -496,3 +497,7 @@ int	bootp_output(struct request *, struct reply *);
 int	dhcp_output(struct request *, struct reply *);
 int	dhcp_add_tlv(struct reply *, u_int8_t, u_int8_t, void *);
 int	dhcp_fill_options(struct request *, struct reply *, struct group *);
+
+/* unsatisfied.c */
+void	unsatisfied_log(struct request *, const char *, char *);
+void	unsatisfied_purge(void);

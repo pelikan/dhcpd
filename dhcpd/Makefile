@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 SRCS=	bpf.c control.c dhcpd.c group.c interface.c lease.c log.c memory.c
-SRCS+=	privsep.c range.c
+SRCS+=	privsep.c range.c unsatisfied.c
 SRCS+=	protocol_input.c protocol_logic.c protocol_output.c protocol_quirks.c
 PROG=	dhcpd
 

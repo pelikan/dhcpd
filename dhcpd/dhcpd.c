@@ -224,6 +224,7 @@ main(int argc, char *argv[])
 	event_dispatch();
 
 	close(control_sock);
+	unsatisfied_purge();
 	interfaces_destroy();
 	log_info("exitting %s", privileged_exit_code ? "badly" : "gracefully");
 	return (privileged_exit_code);
