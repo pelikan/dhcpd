@@ -28,12 +28,14 @@ a relay agent (HP A5800 Switch) with a variety of clients:
 - TP-link TL-WR741N (makes 6 DHCPDISCOVERs before SELECTING)
 - some Belkin router ([without the backdoor](https://github.com/elvanderb/TCP-32764)) (gets a lease, then releases it, then re-discovers asking for the same one, all with xid 0x1)
 - Sony Bravia TV (option 57 violates ([RFC 2132](http://tools.ietf.org/html/rfc2132)); they probably wanted to write 9216 (0x2400) bytes and copied the length (0x02) byte on the left, which makes it look like 548 (0x0224) bytes, which of course is illegal)
+- Linksys WRP400
 
 What we need now:
 =================
-- a proper configuration file parser (Grégoire Duchêne was working on that
-  in another GSoC project) integrated into dhcpctl + the format documented
+- a proper configuration file parser ([Grégoire Duchêne was working on that
+  in another GSoC project](http://www.google-melange.com/gsoc/project/details/google/gsoc2014/gduchene/5717271485874176)) integrated into dhcpctl + the format documented
 - maybe transaction support will be needed to keep the reload process sane
+- re-check all cases when a dynamic range overlaps some static host entries
 - Support other operating systems.  I have working code for Windows + Linux
   but need to put it all together.  My previous DHCP server manipulated ARP
   instead of sending stuff on BPF.  Then it's valgrind time :-)
@@ -45,3 +47,6 @@ What we need now:
   be a separate process, but we'll see.  Likely to happen after the parser.
 - Some address-liveness awareness code, most likely ICMP before DHCPOFFERs.
   Maybe ARP snooping over dynamic ranges?  Would require another 2MB bitmap.
+- On commit/expiry/release is a cool feature in ISC DHCP 4.3.  We could use
+  such a mechanism to implement DDNS registration; command with environment
+  variables containing lease information would do whatever you want it to.
