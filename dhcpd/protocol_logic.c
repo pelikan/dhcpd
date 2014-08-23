@@ -122,7 +122,8 @@ dhcpnak(struct request *req, const char *text)
 		return (-1);
 
 	/* RFC 2131, server or relay MUST broadcast DHCPNAK messages. */
-	reply.pkt.bootp.flags |= BOOTP_FLAG_BROADCAST;
+	req->bootp->flags |= htons(BOOTP_FLAG_BROADCAST);
+	reply.flags |= REPLY_BROADCAST_LOCAL;
 
 	++stats[STATS_NAKS];
 	log_info("%s: DHCPNAK: %s: %s", req->shared->name,
@@ -262,7 +263,7 @@ dhcprequest(struct request *req)
 		if (req->l3->ip_dst.s_addr == INADDR_BROADCAST ||
 		    (req->bootp->giaddr.s_addr &&
 		    req->l3->ip_src.s_addr == req->bootp->giaddr.s_addr)) {
-			req->bootp->flags |= BOOTP_FLAG_BROADCAST;
+			req->bootp->flags |= htons(BOOTP_FLAG_BROADCAST);
 			flags |= REPLY_BROADCAST_LOCAL;
 
 			switch (dhcp_requested_ip(req, l->address)) {
