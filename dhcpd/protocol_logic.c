@@ -189,7 +189,7 @@ dhcpdiscover(struct request *req)
 		if (l == NULL)
 			return not_found(req, "DHCPDISCOVER, dynamic");
 	}
-	else if (h->lease == NULL) {
+	else {
 		h->lease = l = lease_new(h->subnet, h->address, &h->mac,
 		    h->group, OFFER_LEASE_TIME);
 		if (l == NULL)
