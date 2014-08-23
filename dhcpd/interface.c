@@ -1424,7 +1424,7 @@ destination(struct reply *reply, struct request *req, u_int16_t *l4d)
 	}
 
 	/* The server SHOULD examine the newly-defined BROADCAST flag. */
-	else if (req->bootp->flags & BOOTP_FLAG_BROADCAST)
+	else if (req->bootp->flags & htons(BOOTP_FLAG_BROADCAST))
 		l3d.s_addr = INADDR_BROADCAST;
 
 	else
