@@ -310,10 +310,10 @@ lease_decline(struct request *req, struct lease *l)
 void
 lease_extend(struct reply *r)
 {
-	struct lease	*l;
+	struct lease	*l, fake;
 	u_int8_t	*p;
 	unsigned	 addend;
-	struct timeval	 expires, now, diff;
+	struct timeval	 now, diff;
 
 	if ((p = r->options[DHCP_OPT_ADDR_LEASETIME]) == NULL)
 		addend = DEFAULT_LEASE_TIME;
@@ -328,10 +328,17 @@ lease_extend(struct reply *r)
 	diff.tv_usec = arc4random_uniform(1000000);
 
 	gettimeofday(&now, NULL);
-	timeradd(&now, &diff, &expires);
+	timeradd(&now, &diff, &fake.expires);
 
 	RB_REMOVE(lease_expiry_tree, &leases_by_expiration, l);
-	l->expires = expires;
+
+	/* Make sure no lease with this precise expiration time exists. */
+	while (RB_FIND(lease_expiry_tree, &leases_by_expiration, &fake)) {
+		++fake.expires.tv_sec;
+		fake.expires.tv_usec = arc4random_uniform(1000000);
+	}
+
+	l->expires = fake.expires;
 	RB_INSERT(lease_expiry_tree, &leases_by_expiration, l);
 	lease_purger_plan(addend);
 }
