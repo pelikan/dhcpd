@@ -42,7 +42,7 @@ range_add(struct subnet *s, struct in_addr lo, struct in_addr hi)
 
 	freemap = (ntohl(hi.s_addr) - ntohl(lo.s_addr) + 7) / 8;
 
-	len = sizeof *r + freemap;
+	len = sizeof(*r) + freemap;
 	if ((r = calloc(1, len)) == NULL)
 		return (-1);
 
@@ -153,7 +153,7 @@ range_delete_one(struct range *r, struct in_addr lo, struct in_addr hi)
 
 	if (freemapa) {
 		freemapa = (freemapa + 7) / 8;
-		if ((a = calloc(1, sizeof *a + freemapa)) == NULL)
+		if ((a = calloc(1, sizeof(*a) + freemapa)) == NULL)
 			goto fail;
 		a->lo = r->lo;
 		a->hi = lo;
@@ -162,7 +162,7 @@ range_delete_one(struct range *r, struct in_addr lo, struct in_addr hi)
 	}
 	if (freemapb) {
 		freemapb = (freemapb + 7) / 8;
-		if ((b = calloc(1, sizeof *b + freemapb)) == NULL)
+		if ((b = calloc(1, sizeof(*b) + freemapb)) == NULL)
 			goto fail;
 		b->lo = hi;
 		b->hi = r->hi;

@@ -36,7 +36,7 @@ dhcpoffer(struct request *req, struct lease *l, unsigned flags)
 
 	lease_whoisit(l, req);
 
-	memset(&reply, 0, sizeof reply);
+	memset(&reply, 0, sizeof(reply));
 	reply.flags = flags;
 	reply.lease = l;
 
@@ -72,7 +72,7 @@ dhcpack(struct request *req, struct lease *l, unsigned flags)
 
 	lease_whoisit(l, req);
 
-	memset(&reply, 0, sizeof reply);
+	memset(&reply, 0, sizeof(reply));
 	reply.flags = flags | REPLY_EXTEND_LEASE;
 	reply.lease = l;
 
@@ -106,8 +106,8 @@ dhcpnak(struct request *req, const char *text)
 	struct lease	 fake;
 	struct in_addr	 serverid = ipv4_addr(req->rcvd_on);
 
-	memset(&fake, 0, sizeof fake);
-	memset(&reply, 0, sizeof reply);
+	memset(&fake, 0, sizeof(fake));
+	memset(&reply, 0, sizeof(reply));
 	reply.lease = &fake;
 
 	if (dhcp_output(req, &reply) < 0)
@@ -142,11 +142,11 @@ preview(struct request *req)
 	    (p = req->dhcp_opts[DHCP_OPT_VENDOR_CLASSID]) == NULL)
 		return "";
 
-	len = MIN(sizeof x - 5U, p[0] + 1U);
+	len = MIN(sizeof(x) - 5U, p[0] + 1U);
 	x[0] = ' ';
 	x[1] = '(';
 	strnvis(x + 2, (char *)p + 1, len, VIS_SAFE);
-	strlcat(x, ")", sizeof x);
+	strlcat(x, ")", sizeof(x));
 
 	return x;
 }
@@ -179,7 +179,7 @@ dhcpdiscover(struct request *req)
 			struct in_addr ip;
 
 			memcpy(&ip, req->dhcp_opts[DHCP_OPT_ADDR_REQUESTED] + 1,
-			    sizeof ip);
+			    sizeof(ip));
 
 			/* There should always be a chance if it's taken. */
 			if ((l = lease_previous_dynamic(req, ip)) == NULL) {
@@ -212,7 +212,7 @@ dhcp_requested_ip(struct request *req, struct in_addr a)
 		return (-1);
 
 	memcpy(&requested, req->dhcp_opts[DHCP_OPT_ADDR_REQUESTED] + 1,
-	    sizeof requested);
+	    sizeof(requested));
 
 	return (a.s_addr == requested.s_addr) ? 1 : 0;
 }
@@ -233,7 +233,7 @@ dhcprequest_unknown_lease(struct request *req)
 		requested = req->bootp->ciaddr;
 	else
 		memcpy(&requested, req->dhcp_opts[DHCP_OPT_ADDR_REQUESTED] + 1,
-		    sizeof requested);
+		    sizeof(requested));
 
 	return lease_previous_dynamic(req, requested);
 }
@@ -390,7 +390,7 @@ dhcpinform(struct request *req)
 	struct in_addr ip = req->bootp->ciaddr;
 	struct lease fake_lease;
 
-	memset(&fake_lease, 0, sizeof fake_lease);
+	memset(&fake_lease, 0, sizeof(fake_lease));
 	fake_lease.subnet = shared_network_find_subnet(req->shared, ip);
 	if (fake_lease.subnet == NULL)
 		return not_found(req, "DHCPINFORM");
@@ -416,7 +416,7 @@ bootrequest(struct request *req, void *vendor, ssize_t len)
 	if ((h = shared_network_find_mac(req)) == NULL) {
 		static char pview[48];
 
-		snprintf(pview, sizeof pview, " magic %#x, len %zd",
+		snprintf(pview, sizeof(pview), " magic %#x, len %zd",
 		    ntohl(magic[0]), len);
 		unsatisfied_log(req, "BOOTREQUEST", pview);
 		return (0);
@@ -426,13 +426,13 @@ bootrequest(struct request *req, void *vendor, ssize_t len)
 	    req->shared->name, ether_ntoa(&req->bootp->chaddr.ether),
 	    inet_ntoa(h->address), ntohl(magic[0]), len);
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.host = h;
 	fake.address = h->address;
 	fake.group = h->group;
 	fake.subnet = h->subnet;
 
-	memset(&reply, 0, sizeof reply);
+	memset(&reply, 0, sizeof(reply));
 	reply.lease = &fake;
 
 	/*

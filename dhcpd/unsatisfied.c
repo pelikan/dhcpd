@@ -85,7 +85,7 @@ unsatisfied_log(struct request *req, const char *where, char *preview)
 		return;
 	}
 
-	if ((found = calloc(1, sizeof fake)) == NULL)
+	if ((found = calloc(1, sizeof(fake))) == NULL)
 		goto doneit;
 
 	time(&found->started);

@@ -36,7 +36,7 @@
 #define	DHCPD_SAID		"dhcpd said: %s"
 #define	DHCPD_WRONG_IMSG	"wrong answer: imsg type %d len %d"
 
-struct sockaddr_un sun = { sizeof PATH_CTLSOCK, AF_UNIX, PATH_CTLSOCK };
+struct sockaddr_un sun = { sizeof(PATH_CTLSOCK), AF_UNIX, PATH_CTLSOCK };
 struct imsgbuf ibuf;
 int quit = 0;
 char error_buffer[ERR_BUF_SIZE * 4];	/* enough for strvis(3) */
@@ -894,8 +894,8 @@ do_stats(void)
 			break;
 		case IMSG_STATS:
 			buf = imsg.data;
-			assert((count % sizeof *buf) == 0);
-			count /= sizeof *buf;
+			assert((count % sizeof(*buf)) == 0);
+			count /= sizeof(*buf);
 			assert(count == 512 + STATS__MAXIMUM);
 
 			for (size_t i = 0; i < 512; ++i) {
@@ -1038,7 +1038,7 @@ do_shell(void)
 		delim = ' ';
 		if (isatty(fileno(stdin)))
 			printf("dhcpctl> ");
-		memset(args, 0, sizeof args);
+		memset(args, 0, sizeof(args));
 		for (i = 0; i < MAX_ARGUMENTS && delim != '\n'; ++i) {
 			scanf("%255s", word);
 			delim = getchar();
@@ -1081,8 +1081,8 @@ main(int argc, char *argv[])
 
 		switch (ch) {
 		case 's':
-			len = strlcpy(sun.sun_path, optarg, sizeof sun.sun_path);
-			if (len >= sizeof sun.sun_path)
+			len = strlcpy(sun.sun_path, optarg, sizeof(sun.sun_path));
+			if (len >= sizeof(sun.sun_path))
 				errx(1, "path too long: %s", optarg);
 			sun.sun_len = len;
 			break;
@@ -1098,7 +1098,7 @@ main(int argc, char *argv[])
 
 	if ((sock = socket(PF_UNIX, SOCK_STREAM, AF_UNSPEC)) == -1)
 		err(1, "socket(PF_UNIX)");
-	if (connect(sock, (struct sockaddr *) &sun, sizeof sun) == -1)
+	if (connect(sock, (struct sockaddr *) &sun, sizeof(sun)) == -1)
 		err(1, "connect(%s)", sun.sun_path);
 
 	imsg_init(&ibuf, sock);

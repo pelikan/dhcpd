@@ -51,13 +51,13 @@ udp_socket_open(struct in_addr *a)
 {
 	int fd;
 	struct sockaddr_in sin = {
-	    sizeof sin, AF_INET, htons(BOOTP_SERVER_PORT), *a, {0}
+	    sizeof(sin), AF_INET, htons(BOOTP_SERVER_PORT), *a, {0}
 	};
 
 	if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 		return (-1);
 
-	if (bind(fd, (struct sockaddr *) &sin, sizeof sin) == -1)
+	if (bind(fd, (struct sockaddr *) &sin, sizeof(sin)) == -1)
 		goto fail;
 
 	return (fd);
@@ -123,7 +123,7 @@ privileged_main(void)
 	struct pollfd		pfd;
 	struct sigaction	sa;
 
-	memset(&sa, 0, sizeof sa);
+	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = privileged_signal_handler;
 	sigaction(SIGHUP, &sa, NULL);
 	sigaction(SIGINT, &sa, NULL);
@@ -203,7 +203,7 @@ unprivileged_ask_for_bpf(const char *ifname)
 	char buf[IF_NAMESIZE];
 
 	strlcpy(buf, ifname, IF_NAMESIZE);
-	imsg_compose(&imsgbuf, IMSG_BPF, 0, 0, -1, buf, sizeof buf);
+	imsg_compose(&imsgbuf, IMSG_BPF, 0, 0, -1, buf, sizeof(buf));
 	return (imsg_flush(&imsgbuf) == -1);
 }
 
@@ -213,7 +213,7 @@ unprivileged_ask_for_udp(u_int32_t listenaddr)
 	struct in_addr buf;
 
 	buf.s_addr = listenaddr;
-	imsg_compose(&imsgbuf, IMSG_UDP, 0, 0, -1, &buf, sizeof buf);
+	imsg_compose(&imsgbuf, IMSG_UDP, 0, 0, -1, &buf, sizeof(buf));
 	return (imsg_flush(&imsgbuf) == -1);
 }
 

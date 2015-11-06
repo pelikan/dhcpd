@@ -162,16 +162,16 @@ int
 bpf_socket_open(char *ifname)
 {
 	int		fd, i;
-	char		bpf[sizeof "/dev/bpf9999"];
+	char		bpf[sizeof("/dev/bpf9999")];
 	struct ifreq	ifr;
 
-	memset(&ifr, 0, sizeof ifr);
-	if (strlcpy(ifr.ifr_name, ifname, sizeof ifr.ifr_name) >=
-	    sizeof ifr.ifr_name)
+	memset(&ifr, 0, sizeof(ifr));
+	if (strlcpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name)) >=
+	    sizeof(ifr.ifr_name))
 		fatalx("bpf ifreq: interface name too long");
 
 	for (i = 0; i < 99; ++i) {
-		snprintf(bpf, sizeof bpf, "/dev/bpf%d", i);
+		snprintf(bpf, sizeof(bpf), "/dev/bpf%d", i);
 		if ((fd = open(bpf, O_RDWR, 0)) == -1) {
 			if (errno == EBUSY)
 				continue;
@@ -234,12 +234,12 @@ ether_input(void *data, size_t len, struct request *req)
 	if (req->l2->ether_type != htons(ETHERTYPE_IP))
 		fatalx("non-IPv4 packet happened: BPF doesn't work.");
 
-	if (len > MTU || len <= sizeof *req->l2) {
+	if (len > MTU || len <= sizeof(*req->l2)) {
 		log_warnx("%s: rcvd packet of length %zu", __func__, len);
 		return (-1);
 	}
 
-	return (sizeof *req->l2);
+	return (sizeof(*req->l2));
 }
 
 int
@@ -304,8 +304,8 @@ udp_input(void *data, size_t len, struct request *req)
 		sum = uh_ulen + IPPROTO_UDP;
 		sum = checksum(&req->l3->ip_src,
 		    2 * sizeof(struct in_addr), sum);
-		sum = checksum((char *) data + sizeof *req->l4,
-		    len - sizeof *req->l4, sum);
+		sum = checksum((char *) data + sizeof(*req->l4),
+		    len - sizeof(*req->l4), sum);
 		sum = checksum(data, sizeof *req->l4, sum);
 		if (wrapsum(sum) != origsum) {
 			log_warnx("%s: bad checksum", __func__);
@@ -313,7 +313,7 @@ udp_input(void *data, size_t len, struct request *req)
 		}
 	}
 
-	return sizeof *req->l4;
+	return sizeof(*req->l4);
 }
 
 int
@@ -322,7 +322,7 @@ udp_output(struct reply *reply, struct request *req)
 	unsigned short len;
 
 	(void) req;
-	len = sizeof reply->pkt.l4 + sizeof reply->pkt.bootp + reply->off;
+	len = sizeof(reply->pkt.l4) + sizeof(reply->pkt.bootp) + reply->off;
 
 	reply->pkt.l4.uh_sport = htons(BOOTP_SERVER_PORT);
 	reply->pkt.l4.uh_dport = htons(BOOTP_CLIENT_PORT);
@@ -330,7 +330,7 @@ udp_output(struct reply *reply, struct request *req)
 
 	/* UDP checksum needs IPv4 fields...  It's not just IPv6 that's bad.  */
 
-	return sizeof reply->pkt.l4;
+	return sizeof(reply->pkt.l4);
 }
 
 int
@@ -342,13 +342,13 @@ ipv4_output(struct reply *reply, struct request *req)
 	if (reply->off <= 0)
 		fatalx("bad reply offset");
 
-	len = sizeof reply->pkt.bootp + reply->off;
+	len = sizeof(reply->pkt.bootp) + reply->off;
 
 	reply->pkt.l3.ip_v = 4;
 	reply->pkt.l3.ip_hl = 5;
 	reply->pkt.l3.ip_ttl = 16;
 	reply->pkt.l3.ip_len = htons(len +
-	    sizeof reply->pkt.l3 + sizeof reply->pkt.l4);
+	    sizeof(reply->pkt.l3) + sizeof(reply->pkt.l4));
 	reply->pkt.l3.ip_tos = IPTOS_LOWDELAY;
 	reply->pkt.l3.ip_p = IPPROTO_UDP;
 
@@ -356,14 +356,14 @@ ipv4_output(struct reply *reply, struct request *req)
 	reply->pkt.l3.ip_dst = destination(reply, req, &reply->pkt.l4.uh_dport);
 
 	/* Fill in IPv4 checksum. */
-	sum = checksum(&reply->pkt.l3, sizeof reply->pkt.l3, 0);
+	sum = checksum(&reply->pkt.l3, sizeof(reply->pkt.l3), 0);
 	reply->pkt.l3.ip_sum = wrapsum(sum);
 
 	/* Fill in UDP checksum, now that we have the IPv4 header. */
 	sum = ntohs(reply->pkt.l4.uh_ulen) + IPPROTO_UDP;
 	sum = checksum(&reply->pkt.l3.ip_src, 2 * sizeof(struct in_addr), sum);
 	sum = checksum(&reply->pkt.bootp, len, sum);
-	sum = checksum(&reply->pkt.l4, sizeof reply->pkt.l4, sum);
+	sum = checksum(&reply->pkt.l4, sizeof(reply->pkt.l4), sum);
 	reply->pkt.l4.uh_sum = wrapsum(sum);
 
 	return 20;
@@ -372,7 +372,7 @@ ipv4_output(struct reply *reply, struct request *req)
 int
 ether_output(struct reply *r, struct request *req)
 {
-	const size_t len = sizeof req->l2->ether_dhost;
+	const size_t len = sizeof(req->l2->ether_dhost);
 
 	if (r->pkt.l3.ip_dst.s_addr == INADDR_BROADCAST)
 		memset(&r->pkt.l2.ether_dhost, 0xFF, len);
@@ -387,5 +387,5 @@ ether_output(struct reply *r, struct request *req)
 	memcpy(&r->pkt.l2.ether_shost, req->l2->ether_dhost, len);
 	r->pkt.l2.ether_type = htons(ETHERTYPE_IP);
 
-	return sizeof r->pkt.l2;
+	return sizeof(r->pkt.l2);
 }

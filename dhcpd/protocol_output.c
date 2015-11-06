@@ -33,7 +33,7 @@ dhcp_fill_options(struct request *req, struct reply *reply, struct group *g)
 		fatalx("request's shared network doesn't match subnet's!");
 
 	/* The default group is searched only as a last resort. */
-	for (i = 0; i < sizeof ga / sizeof *ga; ++i)
+	for (i = 0; i < sizeof(ga) / sizeof(*ga); ++i)
 		if (ga[i] != &default_group)
 			group_copyout_chain(reply, ga[i]);
 
@@ -167,9 +167,9 @@ dhcp_output(struct request *req, struct reply *reply)
 	if (reply->off)
 		fatalx("dhcp_output called in the wrong place");
 
-	memcpy(reply->pkt.option_space, &magic, sizeof magic);
+	memcpy(reply->pkt.option_space, &magic, sizeof(magic));
 	reply->off = 4;
-	reply->maxsize = sizeof reply->pkt.option_space;
+	reply->maxsize = sizeof(reply->pkt.option_space);
 
 	/*
 	 * RFC 2132, section 9.10:  The minimum legal value is 576 octets.
@@ -187,8 +187,8 @@ dhcp_output(struct request *req, struct reply *reply)
 
 		if (reply->maxsize < BOOTP_VEND)
 			reply->maxsize = BOOTP_VEND;
-		if (reply->maxsize > (int) sizeof reply->pkt.option_space)
-			reply->maxsize = sizeof reply->pkt.option_space;
+		if (reply->maxsize > (int) sizeof(reply->pkt.option_space))
+			reply->maxsize = sizeof(reply->pkt.option_space);
 	}
 	return (0);
 
