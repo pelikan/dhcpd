@@ -751,6 +751,13 @@ do_group_set(struct parse_result *res)
 			memcpy(res->opt_value, &a, 4);
 			res->opt_length = 4;
 		}
+		else if (strcmp(res->syntax, "IP-list") == 0) {
+			parse_ip_list();
+			if (res->ipv4_list_cnt > sizeof res->opt_value / 4)
+				errx(1, "too many IP addresses");
+			res->opt_length = 4 * res->ipv4_list_cnt;
+			memcpy(res->opt_value, res->ipv4_list, res->opt_length);
+		}
 		else
 			errx(1, "how to parse the value?  bytes|IP");
 	}

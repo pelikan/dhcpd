@@ -72,6 +72,8 @@ struct parse_result {
 	char		 syntax[10];
 	struct in_addr	 ipv4_1;
 	struct in_addr	 ipv4_2;
+	struct in_addr	 *ipv4_list;
+	size_t		 ipv4_list_cnt;
 	struct in_addr	 network;
 	u_int32_t	 flags;
 	u_int8_t	 prefixlen;
@@ -82,3 +84,4 @@ struct parse_result {
 };
 
 struct parse_result	*parse(int, char *[]);
+void			 parse_ip_list(void);

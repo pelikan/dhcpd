@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vis.h>
 
 #include "parser.h"
 
@@ -393,6 +394,61 @@ parse_subnet(struct parse_result *tgt, const char *word)
 	return inet_aton(ipv4, &tgt->network);
 }
 
+static __dead void
+bad_ip_list(const char *str)
+{
+	char s[64];
+	strnvis(s, str, sizeof s, VIS_SAFE | VIS_NL);
+	errx(1, "invalid input '%s' from an IP address list", s);
+}
+
+static char *
+delimiter(char *str)
+{
+	while (*str != '\0' && *str != '\n') {
+		switch (*str) {
+		case ',':
+		case ' ':
+		case '\t':
+			return (str);
+		case '.':
+			++str;
+			continue;
+		default:
+			if (*str >= '0' && *str <= '9')
+				++str;
+			else
+				bad_ip_list(str);
+		}
+	}
+	return (NULL);
+}
+
+void
+parse_ip_list(void)
+{
+	struct in_addr a, *nlist;
+	char *delim, *p = (char *)res.opt_value;
+
+	res.ipv4_list_cnt = 0;
+	do {
+		delim = delimiter(p);
+		if (delim) {
+			delim[0] = '\0';
+			++delim;
+		}
+		if (inet_aton(p, &a) == 0)
+			bad_ip_list(p);
+		++res.ipv4_list_cnt;
+		if ((nlist = reallocarray(res.ipv4_list, res.ipv4_list_cnt,
+		    sizeof *res.ipv4_list)) == NULL)
+			err(1, "out of memory");
+		res.ipv4_list = nlist;
+		memcpy(nlist + res.ipv4_list_cnt - 1, &a, sizeof a);
+		p = delim;
+	} while (p != NULL);
+}
+
 const struct token *
 match_token(int *argc, char **argv[], const struct token table[])
 {
@@ -422,7 +478,7 @@ match_token(int *argc, char **argv[], const struct token table[])
 			}
 			break;
 		case INTERFACE:
-			if (strlen(word) > IF_NAMESIZE) {
+			if (word == NULL || strlen(word) > IF_NAMESIZE) {
 				fprintf(stderr, "interface name too long\n");
 				break;
 			}
@@ -555,7 +611,7 @@ show_valid_args(const struct token table[])
 			fprintf(stderr, "  <string>\n");
 			break;
 		case SYNTAX:
-			fprintf(stderr, "  (bytes|IP)\n");
+			fprintf(stderr, "  (bytes|IP|IP-list)\n");
 			break;
 		case GROUP:
 			fprintf(stderr, "  <group-name>\n");

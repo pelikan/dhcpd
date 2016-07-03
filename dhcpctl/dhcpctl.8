@@ -96,7 +96,7 @@ Create a named group.
 Set or unset parameters to a group, or link it under a different group.  Loops will be treated as errors and reported.
 .It Xo
 .Cm group tlv-set Ar name
-.Pq Ic bytes Ns | Ns Ic IP
+.Pq Ic bytes Ns | Ns Ic IP Ns | Ns Ic IP-list
 .Ar type length value
 .Xc
 Set a DHCP option to be sent in this group.  If you need to enter
@@ -116,6 +116,8 @@ addresses is simpler, just use
 and the seven character string will be parsed as an IP address using
 .Xr inet_aton 3
 and set as a NTP server.
+.Cm IP-list
+is a comma or space-separated list of IP addresses.
 .It Xo
 .Cm group tlv-unset Ar name length types
 .Xc
@@ -317,7 +319,7 @@ DNS domain settings and a diskless station might look like this:
 .Bd -literal -offset indent
 # echo "group create mynetwork
 group tlv-set mynetwork IP 3 13 192.168.155.1
-group tlv-set mynetwork IP 6 10 192.0.2.45
+group tlv-set mynetwork IP-list 6 99 192.0.2.45,8.8.4.4,8.8.8.8
 group tlv-set mynetwork bytes 15 10 potazmo.cz
 group tlv-set mynetwork IP 42 10 192.0.2.45
 
