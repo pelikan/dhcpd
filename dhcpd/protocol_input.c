@@ -205,7 +205,7 @@ bootp_input(u_int8_t *data, size_t len, struct request *req)
 		}		tail;
 	} *packet = (void *) data;
 
-	if (len > MTU || len < sizeof packet->bootp + 4) {
+	if (len > MTU || len < sizeof(packet->bootp) + 4) {
 		++stats[STATS_BOOTP_BAD_LEN];
 		log_warnx("%s: rcvd packet of length %zu", __func__, len);
 		return (-1);

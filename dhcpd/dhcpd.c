@@ -117,16 +117,16 @@ set_defaults(void)
 	u_int32_t t = htonl(DEFAULT_LEASE_TIME);
 
 	/* Initialize some default timers essential for many clients. */
-	if ((buf = malloc(1 + sizeof t)) == NULL)
+	if ((buf = malloc(1 + sizeof(t))) == NULL)
 		goto nomem;
 
-	buf[0] = sizeof t;
-	memcpy(buf + 1, &t, sizeof t);
+	buf[0] = sizeof(t);
+	memcpy(buf + 1, &t, sizeof(t));
 	default_group.options[DHCP_OPT_ADDR_LEASETIME] = buf;
 
 	/* Initialize the default group and shared_network. */
 	default_group.refcnt = 1;
-	strlcpy(default_group.name, "default", sizeof "default");
+	strlcpy(default_group.name, "default", sizeof("default"));
 	RB_INSERT(group_tree, &groups, &default_group);
 
 	default_shared_network.name = "default";

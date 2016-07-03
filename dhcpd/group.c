@@ -38,10 +38,10 @@ group_new(void)
 {
 	struct group *g;
 
-	if ((g = calloc(1, sizeof *g)) == NULL)
+	if ((g = calloc(1, sizeof(*g))) == NULL)
 		return (NULL);
 
-	snprintf(g->name, sizeof g->name, "__anon__%08X",
+	snprintf(g->name, sizeof(g->name), "__anon__%08X",
 	    arc4random_uniform(UINT_MAX));
 
 	/*
@@ -59,7 +59,7 @@ group_create(struct ctl_group *ctl)
 	if ((g = group_new()) == NULL)
 		return "out of memory";
 
-	strlcpy(g->name, ctl->name, sizeof g->name);
+	strlcpy(g->name, ctl->name, sizeof(g->name));
 	g->next = group_use(&default_group);
 
 	if (RB_FIND(group_tree, &groups, g)) {
@@ -103,7 +103,7 @@ group_find(char *name)
 {
 	struct group fake;
 
-	strlcpy(fake.name, name, sizeof fake.name);
+	strlcpy(fake.name, name, sizeof(fake.name));
 	return RB_FIND(group_tree, &groups, &fake);
 }
 
@@ -113,11 +113,11 @@ group_set(struct ctl_group_settings *gs, size_t len)
 	struct group *g, *parent, fake;
 	int i;
 
-	strlcpy(fake.name, gs->parent, sizeof fake.name);
+	strlcpy(fake.name, gs->parent, sizeof(fake.name));
 	if ((parent = RB_FIND(group_tree, &groups, &fake)) == NULL)
 		return "no such parent group";
 
-	strlcpy(fake.name, gs->name, sizeof fake.name);
+	strlcpy(fake.name, gs->name, sizeof(fake.name));
 	if ((g = RB_FIND(group_tree, &groups, &fake)) == NULL)
 		return "no such group";
 
@@ -138,7 +138,7 @@ group_set(struct ctl_group_settings *gs, size_t len)
 
 	len -= offsetof(struct ctl_group_settings, options);
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	if (len > 2 && dhcp_options_parse(gs->options, len, fake.options) < 0)
 		return "can't parse options";
 

@@ -57,10 +57,10 @@ host_add(struct ctl_host *ctl_host)
 	if ((s = subnet_find(ctl_host->ip, ctl_host->shared)) == NULL)
 		return "no such subnet";
 
-	if ((h = calloc(1, sizeof *h)) == NULL)
+	if ((h = calloc(1, sizeof(*h))) == NULL)
 		return "out of memory";
 
-	if ((h->name = strndup(ctl_host->name, sizeof ctl_host->name)) == NULL)
+	if ((h->name = strndup(ctl_host->name, sizeof(ctl_host->name))) == NULL)
 		goto fail;
 	h->address = ctl_host->ip;
 	h->mac = ctl_host->mac;
@@ -95,7 +95,7 @@ host_delete(struct ctl_host *ctl_host)
 	struct shared_network *s;
 	int deleted = 0;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	memcpy(&fake.mac, &ctl_host->mac, ETHER_ADDR_LEN);
 
 	RB_FOREACH(s, shared_network_tree, &shared_networks) {
@@ -150,10 +150,10 @@ shared_network_add(struct ctl_shared *ctl)
 	if ((s = shared_network_find(ctl->name)))
 		return "shared_network with that name already exists";
 
-	if ((s = malloc(sizeof *s)) == NULL)
+	if ((s = malloc(sizeof(*s))) == NULL)
 		return "out of memory";
 
-	if ((s->name = strndup(ctl->name, sizeof ctl->name)) == NULL)
+	if ((s->name = strndup(ctl->name, sizeof(ctl->name))) == NULL)
 		goto fail;
 
 	s->refcnt = 1;
@@ -220,7 +220,7 @@ shared_network_find_mac(struct request *req)
 {
 	struct host fake;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.mac = req->bootp->chaddr.ether;
 
 	return RB_FIND(host_mac_tree, &req->shared->hosts, &fake);
@@ -232,7 +232,7 @@ shared_network_find_subnet(struct shared_network *shared, struct in_addr ip)
 	struct subnet fake_subnet, *subnet;
 	u_int32_t found_net, mask;
 
-	memset(&fake_subnet, 0, sizeof fake_subnet);
+	memset(&fake_subnet, 0, sizeof(fake_subnet));
 	fake_subnet.network = ip;
 	fake_subnet.prefixlen = 32;
 	fake_subnet.shared = shared;
@@ -303,7 +303,7 @@ subnet_add(struct ctl_subnet *ctl)
 		return "no such shared_network";
 
 	/* Look for overlaps in this shared_network. */
-	memset(&fake_subnet, 0, sizeof fake_subnet);
+	memset(&fake_subnet, 0, sizeof(fake_subnet));
 	fake_subnet.shared = shared;
 	fake_subnet.network.s_addr = htonl(ourfrst);
 	fake_subnet.prefixlen = 32;
@@ -320,7 +320,7 @@ subnet_add(struct ctl_subnet *ctl)
 	}
 
 	/* Good to add this subnet in. */
-	if ((s = calloc(1, sizeof *s)) == NULL)
+	if ((s = calloc(1, sizeof(*s))) == NULL)
 		return "out of memory";
 
 	s->refcnt = 1;
@@ -368,7 +368,7 @@ subnet_delete(struct ctl_subnet *ctl)
 	if (shared == NULL)
 		return "no such shared_network";
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.network = ctl->network;
 	fake.prefixlen = ctl->prefixlen;
 	fake.shared = shared;

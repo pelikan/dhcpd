@@ -113,7 +113,7 @@ static int
 interface_cmp(const struct network_interface *a,
     const struct network_interface *b)
 {
-	return strncmp(a->name, b->name, sizeof a->name);
+	return strncmp(a->name, b->name, sizeof(a->name));
 }
 RB_GENERATE_STATIC(network_interface_tree, network_interface, interfaces,
     interface_cmp)
@@ -173,7 +173,7 @@ interfaces_dump(struct ctl_interface **bufp, ssize_t *lenp)
 		if (*lenp < count + 1) {
 			size_t new_count = (count + 1) * 2;
 
-			ctlif = reallocarray(*bufp, new_count, sizeof *ctlif);
+			ctlif = reallocarray(*bufp, new_count, sizeof(*ctlif));
 			if (ctlif == NULL)
 				goto fail;
 			*bufp = ctlif;
@@ -181,13 +181,13 @@ interfaces_dump(struct ctl_interface **bufp, ssize_t *lenp)
 
 			ctlif += count;
 		}
-		strlcpy(ctlif->name, ifp->name, sizeof ctlif->name);
+		strlcpy(ctlif->name, ifp->name, sizeof(ctlif->name));
 		ctlif->index = ifp->index;
 		if (ifp->shared)
 			strlcpy(ctlif->shared, ifp->shared->name,
-			    sizeof ctlif->shared);
+			    sizeof(ctlif->shared));
 		else
-			memset(ctlif->shared, 0, sizeof ctlif->shared);
+			memset(ctlif->shared, 0, sizeof(ctlif->shared));
 
 		++count, ++ctlif;
 	}
@@ -211,8 +211,8 @@ interface_by_name(struct network_interface_tree *tree, const char *name)
 {
 	struct network_interface fake;
 
-	memset(&fake, 0, sizeof fake);
-	strlcpy(fake.name, name, sizeof fake.name);
+	memset(&fake, 0, sizeof(fake));
+	strlcpy(fake.name, name, sizeof(fake.name));
 
 	return RB_FIND(network_interface_tree, tree, &fake);
 }
@@ -238,7 +238,7 @@ bpf_event(int fd, short ev, void *arg)
 		log_debug_io("BPF header caplen %u datalen %u hdrlen %u",
 		    hdr->bh_caplen, hdr->bh_datalen, hdr->bh_hdrlen);
 
-		memset(&req, 0, sizeof req);
+		memset(&req, 0, sizeof(req));
 		req.rcvd_on_bpf = arg;
 		req.shared = ni->shared;
 
@@ -336,9 +336,9 @@ interface_arrived(unsigned idx, const char *name)
 
 	/* Interface not needed now. */
 	else {
-		if ((ni = calloc(1, sizeof *ni)) == NULL)
+		if ((ni = calloc(1, sizeof(*ni))) == NULL)
 			return (NULL);
-		strlcpy(ni->name, name, sizeof ni->name);
+		strlcpy(ni->name, name, sizeof(ni->name));
 		tree = &ifs_nuse;
 		log_debug("interface %s arrived (unused)", name);
 	}
@@ -380,8 +380,8 @@ interface_departed(const char *name)
 	struct network_interface *ni, fake;
 
 	/* Find the interface first. */
-	memset(&fake, 0, sizeof fake);
-	strlcpy(fake.name, name, sizeof fake.name);
+	memset(&fake, 0, sizeof(fake));
+	strlcpy(fake.name, name, sizeof(fake.name));
 
 	tree = &ifs_used;
 	ni = RB_FIND(network_interface_tree, tree, &fake);
@@ -428,8 +428,8 @@ interface_add(struct ctl_interface *ctl)
 		return "no such shared_network";
 	}
 
-	memset(&fake_ni, 0, sizeof fake_ni);
-	strlcpy(fake_ni.name, ctl->name, sizeof fake_ni.name);
+	memset(&fake_ni, 0, sizeof(fake_ni));
+	strlcpy(fake_ni.name, ctl->name, sizeof(fake_ni.name));
 
 	/* Is it already added?  Notify the user. */
 	if (RB_FIND(network_interface_tree, &ifs_used, &fake_ni) ||
@@ -452,13 +452,13 @@ interface_add(struct ctl_interface *ctl)
 	}
 
 	/* Not yet present, add it to the wanted list. */
-	if ((ni = calloc(1, sizeof *ni)) == NULL) {
+	if ((ni = calloc(1, sizeof(*ni))) == NULL) {
 		log_warnx("%s: out of memory", __func__);
 		return "out of memory";
 	}
 
 	ni->fd = -1;
-	strlcpy(ni->name, ctl->name, sizeof ni->name);
+	strlcpy(ni->name, ctl->name, sizeof(ni->name));
 	ni->shared = shared_network_use(shared);
 	RB_INSERT(network_interface_tree, &ifs_want, ni);
 
@@ -472,8 +472,8 @@ interface_delete(struct ctl_interface *ctl)
 	struct network_interface_tree *tree;
 	struct network_interface *ni, fake;
 
-	memset(&fake, 0, sizeof fake);
-	strlcpy(fake.name, ctl->name, sizeof fake.name);
+	memset(&fake, 0, sizeof(fake));
+	strlcpy(fake.name, ctl->name, sizeof(fake.name));
 
 	/* If it is in use, close the BPF socket and add it to dormant list. */
 	tree = &ifs_used;
@@ -538,7 +538,7 @@ ipv4_addr_dump(struct ctl_address **bufp, ssize_t *lenp)
 		if (*lenp < count + 1) {
 			size_t new_count = (count + 1) * 2;
 
-			ctla = reallocarray(*bufp, new_count, sizeof *ctla);
+			ctla = reallocarray(*bufp, new_count, sizeof(*ctla));
 			if (ctla == NULL)
 				goto fail;
 			*bufp = ctla;
@@ -549,9 +549,9 @@ ipv4_addr_dump(struct ctl_address **bufp, ssize_t *lenp)
 		ctla->ipv4 = na->ipv4;
 		if (na->shared)
 			strlcpy(ctla->shared, na->shared->name,
-			    sizeof ctla->shared);
+			    sizeof(ctla->shared));
 		else
-			memset(ctla->shared, 0, sizeof ctla->shared);
+			memset(ctla->shared, 0, sizeof(ctla->shared));
 
 		++count, ++ctla;
 	}
@@ -576,20 +576,20 @@ udp_event(int fd, short ev, void *arg)
 	struct network_address *na = arg;
 	struct ip		ip;
 	struct sockaddr_in	from;
-	socklen_t		fromlen = sizeof from;
+	socklen_t		fromlen = sizeof(from);
 	struct request		req;
 	u_int8_t		buf[MTU];
 	ssize_t			n;
 
 	(void) ev;
 
-	memset(&req, 0, sizeof req);
+	memset(&req, 0, sizeof(req));
 	req.rcvd_on = arg;
 	req.shared = na->shared;
 	req.l3 = &ip;
 	ip.ip_dst = na->ipv4;
 
-	n = recvfrom(fd, buf, sizeof buf, 0,
+	n = recvfrom(fd, buf, sizeof(buf), 0,
 	    (struct sockaddr *) &from, &fromlen);
 	ip.ip_src = from.sin_addr;
 
@@ -605,7 +605,7 @@ ipv4_addr_assign_udp(u_int32_t *ipv4, int fd)
 {
 	struct network_address *na, fake;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.ipv4.s_addr = *ipv4;
 	fake.prefixlen = 32;
 
@@ -648,7 +648,7 @@ ipv4_addr_arrived(struct network_interface *ni, u_int32_t ipv4, u_int8_t plen)
 	struct network_address *na, fake;
 	struct ipv4_address_tree *tree;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.ipv4.s_addr = ipv4;
 	/* Don't fill in any specific prefix length, wanted addresses have 0. */
 
@@ -682,7 +682,7 @@ ipv4_addr_arrived(struct network_interface *ni, u_int32_t ipv4, u_int8_t plen)
 	else {
  allocate_new:
 		tree = &ifa_nuse;
-		if ((na = calloc(1, sizeof *na)) == NULL)
+		if ((na = calloc(1, sizeof(*na))) == NULL)
 			return (NULL);
 	}
 
@@ -702,7 +702,7 @@ ipv4_addr_departed(u_int32_t ipv4, u_int8_t plen)
 	struct network_address *na, fake;
 	struct ipv4_address_tree *tree;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.ipv4.s_addr = ipv4;
 	fake.prefixlen = plen;
 
@@ -753,7 +753,7 @@ ipv4_addr_add(struct ctl_address *ctl)
 		return "no such shared_network";
 	}
 
-	memset(&fake_na, 0, sizeof fake_na);
+	memset(&fake_na, 0, sizeof(fake_na));
 	fake_na.ipv4 = ctl->ipv4;
 	/* Don't care about prefixlen, pick the first entry. */
 
@@ -783,7 +783,7 @@ ipv4_addr_add(struct ctl_address *ctl)
 
  notfound:
 	/* Not yet present, add it to the wanted list. */
-	if ((na = calloc(1, sizeof *na)) == NULL) {
+	if ((na = calloc(1, sizeof(*na))) == NULL) {
 		log_warnx("%s: out of memory", __func__);
 		return "out of memory";
 	}
@@ -822,7 +822,7 @@ ipv4_addr_delete(struct ctl_address *ctl)
 	struct ipv4_address_tree *tree;
 	struct network_address *na, fake;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.ipv4 = ctl->ipv4;
 	/* Don't care about prefixlen, pick the first entry. */
 
@@ -869,7 +869,7 @@ ipv4_addr_find_listener(struct in_addr ip, struct ipv4_address_tree **treep)
 {
 	struct network_address *na, fake;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.ipv4 = ip;
 	/* Don't care about prefixlen, pick the first entry. */
 
@@ -892,7 +892,7 @@ bpf_address(struct request *req)
 	struct network_address *na, fake;
 	struct ipv4_address_tree *tree;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.ipv4 = req->l3->ip_dst;
 
 	tree = &ifa_used;
@@ -968,7 +968,7 @@ relay_on(struct ctl_relay *ctl)
 		r = RB_FIND(relay_tree, &na->relays, &fake);
 		if (r)
 			shared_network_free(r->shared);
-		else if ((r = calloc(1, sizeof *r)) == NULL)
+		else if ((r = calloc(1, sizeof(*r))) == NULL)
 			return "out of memory";
 	}
 
@@ -1023,7 +1023,7 @@ relay_dump_realloc(struct relay *r, struct ctl_relay **bufp, ssize_t *lenp,
 	if (*lenp < *cntp + 1) {
 		size_t new_count = (*cntp + 1) * 2;
 
-		ctlr = reallocarray(*bufp, new_count, sizeof *ctlr);
+		ctlr = reallocarray(*bufp, new_count, sizeof(*ctlr));
 		if (ctlr == NULL)
 			return NULL;
 
@@ -1032,7 +1032,7 @@ relay_dump_realloc(struct relay *r, struct ctl_relay **bufp, ssize_t *lenp,
 		ctlr += (*cntp);
 	}
 
-	strlcpy(ctlr->shared, r->shared->name, sizeof ctlr->shared);
+	strlcpy(ctlr->shared, r->shared->name, sizeof(ctlr->shared));
 	ctlr->dst = na->ipv4;
 	ctlr->relay = r->relay;
 
@@ -1222,7 +1222,7 @@ rtsock_init(void)
 	rtfilter = ROUTE_FILTER(RTM_NEWADDR) | ROUTE_FILTER(RTM_DELADDR) |
 	    ROUTE_FILTER(RTM_IFANNOUNCE) | ROUTE_FILTER(RTM_IFINFO);
 	if (setsockopt(s, PF_ROUTE, ROUTE_MSGFILTER,
-	    &rtfilter, sizeof rtfilter) == -1) {
+	    &rtfilter, sizeof(rtfilter)) == -1) {
 		log_warn("setsockopt ROUTE_MSGFILTER");
 		goto fail;
 	}
@@ -1279,7 +1279,7 @@ rtsock_dispatch(int sock, short ev, void *arg)
 		struct ifa_msghdr ia;
 		struct if_announcemsghdr ann;
 	} *m;
-	char buf[sizeof *m + RTAX_MAX * sizeof(struct sockaddr_storage)];
+	char buf[sizeof(*m) + RTAX_MAX * sizeof(struct sockaddr_storage)];
 	struct sockaddr *rti_info[RTAX_MAX];
 	struct sockaddr_in *sin;
 	struct sockaddr_dl *sdl;
@@ -1293,7 +1293,7 @@ rtsock_dispatch(int sock, short ev, void *arg)
 	assert(ev == EV_READ);
 	assert(arg == NULL);
 
-	if ((rcvd = read(sock, buf, sizeof *m)) == -1) {
+	if ((rcvd = read(sock, buf, sizeof(*m))) == -1) {
 		log_warn("read rtsock");
 		return;
 	}
@@ -1446,8 +1446,8 @@ bpf_send(struct network_interface *ni, struct request *req, struct reply *reply)
 	if (ether_output(reply, req) < 0)
 		return (-1);
 
-	pktlen = sizeof reply->pkt.l2 + sizeof reply->pkt.l3;
-	pktlen += sizeof reply->pkt.l4 + sizeof reply->pkt.bootp + reply->off;
+	pktlen = sizeof(reply->pkt.l2) + sizeof(reply->pkt.l3);
+	pktlen += sizeof(reply->pkt.l4) + sizeof(reply->pkt.bootp) + reply->off;
 
 	n = write(ni->fd, reply, pktlen);
 	if (n == -1) {
@@ -1463,16 +1463,16 @@ static int
 udp_send(struct network_address *na, struct request *req, struct reply *reply)
 {
 	struct sockaddr_in	from;
-	socklen_t		fromlen = sizeof from;
+	socklen_t		fromlen = sizeof(from);
 	size_t			len;
 	ssize_t			n;
 
-	memset(&from, 0, sizeof from);
+	memset(&from, 0, sizeof(from));
 	from.sin_family = AF_INET;
 	from.sin_port = htons(BOOTP_CLIENT_PORT);
 	from.sin_addr = destination(reply, req, &from.sin_port);
 
-	len = sizeof reply->pkt.bootp + reply->off;
+	len = sizeof(reply->pkt.bootp) + reply->off;
 	n = sendto(na->fd, &reply->pkt.bootp, len, 0,
 	    (struct sockaddr *) &from, fromlen);
 	if (n == -1) {

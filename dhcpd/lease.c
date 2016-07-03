@@ -134,7 +134,7 @@ lease_new(struct subnet *s, struct in_addr a, struct ether_addr *mac,
 	struct lease *l;
 	struct timeval addend = { valid, 0 };
 
-	if ((l = calloc(1, sizeof *l)) == NULL) {
+	if ((l = calloc(1, sizeof(*l))) == NULL) {
 		log_warnx("%s: out of memory", __func__);
 		return (NULL);
 	}
@@ -224,16 +224,16 @@ lease_whoisit(struct lease *l, struct request *req)
 	u_int8_t len, *p;
 
 	if ((p = req->dhcp_opts[DHCP_OPT_HOSTNAME])) {
-		len = MIN(p[0], sizeof l->last_hostname);
+		len = MIN(p[0], sizeof(l->last_hostname));
 		memcpy(l->last_hostname, p + 1, len);
 		memset(l->last_hostname + len, 0,
-		    sizeof l->last_hostname - len);
+		    sizeof(l->last_hostname) - len);
 	}
 	if ((p = req->dhcp_opts[DHCP_OPT_VENDOR_CLASSID])) {
 		len = MIN(p[0], sizeof l->last_vendor_classid);
 		memcpy(l->last_vendor_classid, p + 1, len);
 		memset(l->last_vendor_classid + len, 0,
-		    sizeof l->last_vendor_classid - len);
+		    sizeof(l->last_vendor_classid) - len);
 	}
 }
 
@@ -248,7 +248,7 @@ leases_dump(struct ctl_lease **bufp, ssize_t *lenp)
 		if (*lenp < count + 1) {
 			size_t new_count = (count + 1) * 2;
 
-			ctll = reallocarray(*bufp, new_count, sizeof *ctll);
+			ctll = reallocarray(*bufp, new_count, sizeof(*ctll));
 			if (ctll == NULL)
 				goto fail;
 			*bufp = ctll;
@@ -257,11 +257,11 @@ leases_dump(struct ctl_lease **bufp, ssize_t *lenp)
 			ctll += count;
 		}
 		strlcpy(ctll->last_hostname, l->last_hostname,
-		    sizeof ctll->last_hostname);
+		    sizeof(ctll->last_hostname));
 		memcpy(ctll->last_vendor_classid, l->last_vendor_classid,
-		    sizeof ctll->last_vendor_classid);
+		    sizeof(ctll->last_vendor_classid));
 		memcpy(ctll->shared, l->subnet->shared->name,
-		    sizeof ctll->shared);
+		    sizeof(ctll->shared));
 		ctll->state = l->state;
 		ctll->allocated = l->allocated;
 		ctll->expires = l->expires;
@@ -285,7 +285,7 @@ lease_find_mac(struct request *req)
 {
 	struct lease fake;
 
-	memset(&fake, 0, sizeof fake);
+	memset(&fake, 0, sizeof(fake));
 	fake.mac = req->bootp->chaddr.ether;
 	return RB_FIND(lease_mac_tree, &req->shared->leases, &fake);
 }
@@ -300,7 +300,7 @@ lease_decline(struct request *req, struct lease *l)
 		l->state = DECLINED;
 
 		RB_REMOVE(lease_mac_tree, &l->subnet->shared->leases, l);
-		memset(&l->mac, 0, sizeof l->mac);
+		memset(&l->mac, 0, sizeof(l->mac));
 		RB_INSERT(lease_mac_tree, &l->subnet->shared->leases, l);
 	}
 

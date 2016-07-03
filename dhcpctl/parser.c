@@ -349,8 +349,8 @@ parse(int argc, char *argv[])
 	bzero(&res, sizeof(res));
 
 	/* may be overwritten by shared_network_opt or group_opt */
-	strlcpy(res.string, "default", sizeof res.string);
-	strlcpy(res.group, "default", sizeof res.group);
+	strlcpy(res.string, "default", sizeof(res.string));
+	strlcpy(res.group, "default", sizeof(res.group));
 
 	while (argc >= 0) {
 		if ((match = match_token(&argc, &argv, table)) == NULL) {
@@ -384,12 +384,12 @@ parse_subnet(struct parse_result *tgt, const char *word)
 	if ((slash = strchr(word, '/')) == NULL)
 		return 0;
 
-	if (slash - word > (long) sizeof ipv4)
+	if (slash - word > (long) sizeof(ipv4))
 		return 0;
 
 	tgt->prefixlen = atoi(slash + 1);
 
-	memset(&ipv4, 0, sizeof ipv4);
+	memset(&ipv4, 0, sizeof(ipv4));
 	memcpy(ipv4, word, slash - word);
 	return inet_aton(ipv4, &tgt->network);
 }
@@ -484,7 +484,7 @@ match_token(int *argc, char **argv[], const struct token table[])
 			}
 			match++;
 			t = &table[i];
-			strlcpy(res.interface, word, sizeof res.interface);
+			strlcpy(res.interface, word, sizeof(res.interface));
 			break;
 		case PARENT:
 			res.flags |= GROUP_WANT_PARENT;
@@ -493,14 +493,14 @@ match_token(int *argc, char **argv[], const struct token table[])
 			if (word != NULL) {
 				match++;
 				t = &table[i];
-				strlcpy(res.syntax, word, sizeof res.syntax);
+				strlcpy(res.syntax, word, sizeof(res.syntax));
 			}
 			break;
 		case STRING:
 			if (word != NULL) {
 				match++;
 				t = &table[i];
-				strlcpy(res.string, word, sizeof res.string);
+				strlcpy(res.string, word, sizeof(res.string));
 			}
 			break;
 		case FILENAME:
@@ -523,7 +523,7 @@ match_token(int *argc, char **argv[], const struct token table[])
 			if (word != NULL) {
 				match++;
 				t = &table[i];
-				strlcpy(res.group, word, sizeof res.group);
+				strlcpy(res.group, word, sizeof(res.group));
 			}
 			break;
 		case SUBNET:
