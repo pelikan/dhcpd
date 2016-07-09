@@ -23,10 +23,12 @@
 #include <assert.h>
 #include <err.h>
 #include <imsg.h>
+#include <inttypes.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <vis.h>
 
@@ -830,45 +832,52 @@ do_extra_stats(u_int64_t *s)
 	time(&now);
 	uptime = now - s[STATS_DAEMON_STARTED];
 
-	printf("options.nospace=%llu\n",	s[STATS_DHCP_NO_SPACE]);
-	printf("options.invalid=%llu\n",	s[STATS_DHCP_INVALID_OPTIONS]);
-	printf("options.duplicate=%llu\n",	s[STATS_DHCP_DUPLICATE_OPTIONS]);
+	printf("options.nospace=%" PRIu64 "\n", s[STATS_DHCP_NO_SPACE]);
+	printf("options.invalid=%" PRIu64 "\n", s[STATS_DHCP_INVALID_OPTIONS]);
+	printf("options.duplicate=%" PRIu64 "\n",
+	    s[STATS_DHCP_DUPLICATE_OPTIONS]);
 
-	printf("uptime=%llu\n",		uptime);
-	printf("uptime.human=%s\n",	print_time(uptime));
-	printf("leases.current=%llu\n",		s[STATS_LEASES_PRESENT]);
-	printf("packets.received.bootrequests=%llu\n",	s[STATS_BOOTREQUESTS]);
-	printf("packets.sent.bootreplies=%llu\n",	s[STATS_BOOTREPLIES]);
-	printf("packets.received.discovers=%llu\n",	s[STATS_DISCOVERS]);
-	printf("packets.sent.offers=%llu\n",		s[STATS_OFFERS]);
-	printf("packets.received.requests=%llu\n",	s[STATS_REQUESTS]);
-	printf("packets.received.requests.initreboot=%llu\n",
+	printf("uptime=%" PRIu64 "\n", uptime);
+	printf("uptime.human=%s\n", print_time(uptime));
+	printf("leases.current=%" PRIu64 "\n", s[STATS_LEASES_PRESENT]);
+
+	printf("packets.received.bootrequests=%" PRIu64 "\n",
+	    s[STATS_BOOTREQUESTS]);
+	printf("packets.sent.bootreplies=%" PRIu64 "\n", s[STATS_BOOTREPLIES]);
+	printf("packets.received.discovers=%" PRIu64 "\n", s[STATS_DISCOVERS]);
+	printf("packets.sent.offers=%" PRIu64 "\n", s[STATS_OFFERS]);
+	printf("packets.received.requests=%" PRIu64 "\n", s[STATS_REQUESTS]);
+	printf("packets.received.requests.initreboot=%" PRIu64 "\n",
 	    s[STATS_REQUESTS_INIT_REBOOT]);
-	printf("packets.received.requests.renewing=%llu\n",
+	printf("packets.received.requests.renewing=%" PRIu64 "\n",
 	    s[STATS_REQUESTS_RENEWING]);
-	printf("packets.received.requests.rebinding=%llu\n",
+	printf("packets.received.requests.rebinding=%" PRIu64 "\n",
 	    s[STATS_REQUESTS_REBINDING]);
-	printf("packets.received.requests.selecting=%llu\n",
+	printf("packets.received.requests.selecting=%" PRIu64 "\n",
 	    s[STATS_REQUESTS_SELECTING]);
-	printf("packets.received.declines=%llu\n",	s[STATS_DECLINES]);
-	printf("packets.sent.acks=%llu\n",		s[STATS_ACKS]);
-	printf("packets.sent.naks=%llu\n",		s[STATS_NAKS]);
-	printf("packets.received.releases=%llu\n",	s[STATS_RELEASES]);
-	printf("packets.received.informs=%llu\n",	s[STATS_INFORMS]);
+	printf("packets.received.declines=%" PRIu64 "\n", s[STATS_DECLINES]);
+	printf("packets.sent.acks=%" PRIu64 "\n", s[STATS_ACKS]);
+	printf("packets.sent.naks=%" PRIu64 "\n", s[STATS_NAKS]);
+	printf("packets.received.releases=%" PRIu64 "\n", s[STATS_RELEASES]);
+	printf("packets.received.informs=%" PRIu64 "\n", s[STATS_INFORMS]);
 
-	printf("packets.badlength.ip=%llu\n",	s[STATS_IP_BAD_LEN]);
-	printf("packets.badlength.udp=%llu\n",	s[STATS_UDP_BAD_LEN]);
-	printf("packets.badlength.bootp=%llu\n",s[STATS_BOOTP_BAD_LEN]);
-	printf("packets.badlength.dhcp=%llu\n",	s[STATS_DHCP_BAD_LEN]);
+	printf("packets.badlength.ip=%" PRIu64 "\n", s[STATS_IP_BAD_LEN]);
+	printf("packets.badlength.udp=%" PRIu64 "\n", s[STATS_UDP_BAD_LEN]);
+	printf("packets.badlength.bootp=%" PRIu64 "\n", s[STATS_BOOTP_BAD_LEN]);
+	printf("packets.badlength.dhcp=%" PRIu64 "\n", s[STATS_DHCP_BAD_LEN]);
 
-	printf("packets.bootp.nrequest=%llu\n",	s[STATS_BOOTP_NOT_BOOTREQUEST]);
-	printf("packets.bootp.badhtype=%llu\n",	s[STATS_BOOTP_BAD_HTYPE]);
-	printf("packets.bootp.badhlen=%llu\n",	s[STATS_BOOTP_BAD_HLEN]);
-	printf("packets.bootp.badrelay=%llu\n",	s[STATS_BOOTP_BAD_RELAY]);
+	printf("packets.bootp.nrequest=%" PRIu64 "\n",
+	    s[STATS_BOOTP_NOT_BOOTREQUEST]);
+	printf("packets.bootp.badhtype=%" PRIu64 "\n",
+	    s[STATS_BOOTP_BAD_HTYPE]);
+	printf("packets.bootp.badhlen=%" PRIu64 "\n", s[STATS_BOOTP_BAD_HLEN]);
+	printf("packets.bootp.badrelay=%" PRIu64 "\n",
+	    s[STATS_BOOTP_BAD_RELAY]);
 
-	printf("packets.dhcp.badmsgtype=%llu\n",s[STATS_DHCP_BAD_MESSAGE_TYPE]);
-	printf("packets.dhcp.notours=%llu\n",	s[STATS_DHCP_NOT_FOR_US]);
-	printf("packets.dhcp.notfound=%llu\n",	s[STATS_DHCP_NOT_FOUND]);
+	printf("packets.dhcp.badmsgtype=%" PRIu64 "\n",
+	    s[STATS_DHCP_BAD_MESSAGE_TYPE]);
+	printf("packets.dhcp.notours=%" PRIu64 "\n", s[STATS_DHCP_NOT_FOR_US]);
+	printf("packets.dhcp.notfound=%" PRIu64 "\n", s[STATS_DHCP_NOT_FOUND]);
 }
 
 static void
@@ -911,7 +920,7 @@ do_stats(void)
 
 				desc = (i >= 256) ?
 				    "received" : "requested";
-				printf("options.unknown.%s.%zu=%llu\n",
+				printf("options.unknown.%s.%zu=%" PRIu64 "\n",
 				    desc, i % 256, buf[i]);
 			}
 			do_extra_stats(buf + 512);
@@ -1047,7 +1056,8 @@ do_shell(void)
 			printf("dhcpctl> ");
 		memset(args, 0, sizeof args);
 		for (i = 0; i < MAX_ARGUMENTS && delim != '\n'; ++i) {
-			scanf("%255s", word);
+			if (scanf("%255s", word) == EOF)
+				return fprintf(stderr, "<EOF>");
 			delim = getchar();
 			if ((args[i] = strndup(word, 255)) == NULL)
 				return fprintf(stderr, "out of memory\n");
