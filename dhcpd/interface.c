@@ -20,7 +20,6 @@
 #include <arpa/inet.h>
 #include <net/bpf.h>
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <net/route.h>
 #include <event.h>
 #include <ifaddrs.h>
@@ -1046,7 +1045,6 @@ interfaces_discover(void)
 	struct ifaddrs *ifap, *p;
 	unsigned idx;
 	u_int8_t plen;
-	struct sockaddr_dl *sdl;
 	struct sockaddr_in *sin;
 	struct sockaddr_in *m;
 	struct network_interface *nif = NULL;
@@ -1060,7 +1058,6 @@ interfaces_discover(void)
                 if ((p->ifa_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)))
 			continue;
 
-		sdl = (struct sockaddr_dl *) p->ifa_addr;
 		sin = (struct sockaddr_in *) p->ifa_addr;
 		m = (struct sockaddr_in *) p->ifa_netmask;
 
@@ -1074,9 +1071,6 @@ interfaces_discover(void)
 		}
 
 		switch (p->ifa_addr->sa_family) {
-		case (AF_LINK):
-			memcpy(nif->mac, LLADDR(sdl), 6);
-			break;
 		case (AF_INET):
 			plen = mask2plen32(ntohl(m->sin_addr.s_addr));
 			if (ipv4_addr_arrived(nif, sin->sin_addr.s_addr,

@@ -34,7 +34,6 @@ struct network_interface {
 	struct shared_network		*shared;
 	unsigned	 index;
 	char		 name[IF_NAMESIZE];
-	u_int8_t	 mac[ETHER_ADDR_LEN];
 	int		 oper_state; /* RFC 2863 */
 
 	/* BPF */
