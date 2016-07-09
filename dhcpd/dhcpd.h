@@ -456,6 +456,8 @@ void		*bpf_address(struct request *);
 /* `uname`.c */
 int	rtsock_init(void);
 void	rtsock_dispatch(int, short, void *);
+void	bpf_event(int, short, void *);
+size_t	bpf_required_size(int);
 
 /* lease.c */
 void	lease_extend(struct reply *);

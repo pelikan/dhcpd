@@ -18,7 +18,6 @@
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <arpa/inet.h>
-#include <net/bpf.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <event.h>
@@ -37,7 +36,6 @@ struct network_interface_tree	ifs_want = RB_INITIALIZER(&ifs_want);
 struct ipv4_address_tree	ifa_used = RB_INITIALIZER(&ifa_used);
 struct ipv4_address_tree	ifa_nuse = RB_INITIALIZER(&ifa_nuse);
 struct ipv4_address_tree	ifa_want = RB_INITIALIZER(&ifa_want);
-
 
 /*
  * Network interface helper functions.
@@ -150,57 +148,36 @@ interface_by_name(struct network_interface_tree *tree, const char *name)
 	return RB_FIND(network_interface_tree, tree, &fake);
 }
 
-static void
-bpf_event(int fd, short ev, void *arg)
+void
+bpf_input(struct network_interface *ni, u_int8_t *data, size_t len)
 {
-	struct network_interface	*ni = arg;
-	struct request			 req;
-	struct bpf_hdr			*hdr;
-	u_int8_t			*data;
-	ssize_t				 n, off;
-	int				 consumed, len;
+	struct request	 req;
+	int		 consumed;
 
-	(void) ev;
+	memset(&req, 0, sizeof req);
+	req.rcvd_on_bpf = ni;
+	req.shared = ni->shared;
 
-	n = read(fd, ni->rbuf, ni->size);
-	log_debug_io("BPF read %zd bytes", n);
+	if ((consumed = ether_input(data, len, &req)) < 0)
+		return;
 
-	off = 0;
-	do {
-		hdr = (struct bpf_hdr *) (ni->rbuf + off);
-		log_debug_io("BPF header caplen %u datalen %u hdrlen %u",
-		    hdr->bh_caplen, hdr->bh_datalen, hdr->bh_hdrlen);
+	data += consumed;
+	len -= consumed;
 
-		memset(&req, 0, sizeof req);
-		req.rcvd_on_bpf = arg;
-		req.shared = ni->shared;
+	if ((consumed = ipv4_input(data, len, &req)) < 0)
+		return;
 
-		data = ni->rbuf + hdr->bh_hdrlen;
-		len = hdr->bh_datalen;
+	data += consumed;
+	len -= consumed;
 
-		if ((consumed = ether_input(data, len, &req)) < 0)
-			goto skip;
+	if ((consumed = udp_input(data, len, &req)) < 0)
+		return;
 
-		data += consumed;
-		len -= consumed;
+	data += consumed;
+	len -= consumed;
 
-		if ((consumed = ipv4_input(data, len, &req)) < 0)
-			goto skip;
-
-		data += consumed;
-		len -= consumed;
-
-		if ((consumed = udp_input(data, len, &req)) < 0)
-			goto skip;
-
-		data += consumed;
-		len -= consumed;
-
-		if ((consumed = bootp_input(data, len, &req)) < 0)
-			log_info("BPF socket processing went wrong");
- skip:
-		off += BPF_WORDALIGN(hdr->bh_hdrlen + hdr->bh_caplen);
-	} while (n - off > 0);
+	if ((consumed = bootp_input(data, len, &req)) < 0)
+		log_info("BPF socket processing went wrong");
 }
 
 void
@@ -215,11 +192,7 @@ interface_assign_bpf(char *name, int fd)
 	}
 
 	/* The kernel will tell us how much memory do we need. */
-	if (ioctl(fd, BIOCGBLEN, &ni->size) == -1) {
-		close(fd);
-		log_warn("BIOCGBLEN in unpriv doesnt work.");
-		return;
-	}
+	ni->size = bpf_required_size(fd);
 
 	if ((ni->rbuf = malloc(ni->size)) == NULL) {
 		close(fd);

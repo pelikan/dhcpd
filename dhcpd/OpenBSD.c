@@ -21,12 +21,112 @@
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <assert.h>
+#include <errno.h>
 #include <event.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "dhcpd.h"
+#include "bpf.h"
 #include "interface.h"
+
+/*
+ * Privileged functions below.
+ */
+
+static int
+bpf_register_receive(int sock)
+{
+	struct bpf_version v;
+	struct bpf_program p;
+	int flag = 1;
+
+	if (ioctl(sock, BIOCVERSION, &v) == -1) {
+		log_warn("ioctl(BIOCVERSION) on BPF");
+		return (-1);
+	}
+
+	if (v.bv_major != BPF_MAJOR_VERSION || v.bv_minor < BPF_MINOR_VERSION)
+		fatalx("Kernel BPF version is wrong - recompile dhcpd!");
+
+	/* Get data out immediately instead of waiting on the buffer to fill. */
+	if (ioctl(sock, BIOCIMMEDIATE, &flag) == -1) {
+		log_warn("ioctl(BIOCIMMEDIATE) on BPF");
+		return (-1);
+	}
+
+	/* Drop what you caught -- there are no other listeners. */
+	if (ioctl(sock, BIOCSFILDROP, &flag) == -1) {
+		log_warn("ioctl(BIOCSFILDROP) on BPF");
+		return (-1);
+	}
+
+	/* Make the kernel fill in the source ethernet address. */
+	flag = 0;
+	if (ioctl(sock, BIOCSHDRCMPLT, &flag) == -1) {
+		log_warn("ioctl(BIOCSHDRCMPLT) on BPF");
+		return (-1);
+	}
+
+	/* Load both the receive and send BPFs into the kernel. */
+	p.bf_len = sizeof(dhcp_bpf_rfilter) / sizeof(struct bpf_insn);
+	p.bf_insns = dhcp_bpf_rfilter;
+	if (ioctl(sock, BIOCSETF, &p) == -1) {
+		log_warn("ioctl(BIOCSETF) on BPF");
+		return (-1);
+	}
+	p.bf_len = sizeof(dhcp_bpf_wfilter) / sizeof(struct bpf_insn);
+	p.bf_insns = dhcp_bpf_wfilter;
+	if (ioctl(sock, BIOCSETWF, &p) == -1) {
+		log_warn("ioctl(BIOCSETWF) on BPF");
+		return (-1);
+	}
+
+	/* Lock the BPF file descriptor to prevent unpriv changes. */
+	if (ioctl(sock, BIOCLOCK, &p) == -1) {
+		log_warn("ioctl(BIOCLOCK) on BPF");
+		return (-1);
+	}
+	return (sock);
+}
+
+int
+bpf_socket_open(char *ifname)
+{
+	int		fd, i;
+	char		bpf[sizeof "/dev/bpf9999"];
+	struct ifreq	ifr;
+
+	memset(&ifr, 0, sizeof ifr);
+	if (strlcpy(ifr.ifr_name, ifname, sizeof ifr.ifr_name) >=
+	    sizeof ifr.ifr_name)
+		fatalx("bpf ifreq: interface name too long");
+
+	for (i = 0; i < 99; ++i) {
+		snprintf(bpf, sizeof bpf, "/dev/bpf%d", i);
+		if ((fd = open(bpf, O_RDWR, 0)) == -1) {
+			if (errno == EBUSY)
+				continue;
+			else
+				return (-1);
+		}
+		break;
+	}
+
+	if (ioctl(fd, BIOCSETIF, &ifr) == -1) {
+		log_warn("ioctl(BIOCSETIF, %s) on BPF", ifname);
+		close(fd);
+		fd = -1;
+	}
+
+	if (bpf_register_receive(fd) == -1) {
+		close(fd);
+		fd = -1;
+	}
+	return (fd);
+}
 
 int
 rtsock_init(void)
@@ -58,6 +158,10 @@ rtsock_init(void)
 	close(s);
 	return (-1);
 }
+
+/*
+ * Unprivileged functions below.
+ */
 
 #define ROUNDUP(a)	\
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
@@ -210,3 +314,45 @@ rtsock_dispatch(int sock, short ev, void *arg)
 	}
 }
 #undef READ_THE_REST
+
+void
+bpf_event(int fd, short ev, void *arg)
+{
+	struct network_interface	*ni = arg;
+	struct bpf_hdr			*hdr;
+	u_int8_t			*data;
+	ssize_t				 n, off, len;
+
+	(void) ev;
+
+	n = read(fd, ni->rbuf, ni->size);
+	log_debug_io("BPF read %zd bytes", n);
+
+	off = 0;
+	do {
+		hdr = (struct bpf_hdr *) (ni->rbuf + off);
+		log_debug_io("BPF header caplen %u datalen %u hdrlen %u",
+		    hdr->bh_caplen, hdr->bh_datalen, hdr->bh_hdrlen);
+
+		data = ni->rbuf + hdr->bh_hdrlen;
+		len = hdr->bh_datalen;
+
+		bpf_input(ni, data, len);
+
+		off += BPF_WORDALIGN(hdr->bh_hdrlen + hdr->bh_caplen);
+	} while (n - off > 0);
+}
+
+size_t
+bpf_required_size(int fd)
+{
+	size_t size;
+
+	if (ioctl(fd, BIOCGBLEN, &size) == -1 || size == 0) {
+		close(fd);
+		log_warn("BIOCGBLEN in unpriv doesnt work.");
+		return 0;
+	}
+
+	return (size);
+}

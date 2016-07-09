@@ -96,3 +96,4 @@ struct network_address		*ipv4_addr_arrived(struct network_interface *, u_int32_t
 
 void	 interface_departed(const char *);
 void	 ipv4_addr_departed(u_int32_t, u_int8_t);
+void	 bpf_input(struct network_interface *, u_int8_t *, size_t);
