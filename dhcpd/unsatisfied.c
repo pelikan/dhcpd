@@ -17,6 +17,7 @@
 #include <event.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "dhcpd.h"
 

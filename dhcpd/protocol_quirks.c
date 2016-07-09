@@ -15,6 +15,7 @@
  */
 
 #include <string.h>
+#include <time.h>
 
 #include "dhcpd.h"
 

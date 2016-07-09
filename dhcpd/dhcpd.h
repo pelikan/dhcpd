@@ -18,7 +18,6 @@
 #include <sys/queue.h>
 #include <sys/tree.h>
 #include <netinet/in.h>
-#include <netinet/ip_ether.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
 #include <stddef.h>
