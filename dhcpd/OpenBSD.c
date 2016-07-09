@@ -325,7 +325,10 @@ bpf_event(int fd, short ev, void *arg)
 
 	(void) ev;
 
-	n = read(fd, ni->rbuf, ni->size);
+	if ((n = read(fd, ni->rbuf, ni->size)) == -1) {
+		log_warn("BPF read(2)");
+		return;
+	}
 	log_debug_io("BPF read %zd bytes", n);
 
 	off = 0;

@@ -187,8 +187,8 @@ main(int argc, char *argv[])
 	log_init(debug);
 	log_info("starting");
 
-	if (!debug)
-		daemon(1, 0);
+	if (!debug && daemon(1, 0) != 0)
+		fatal("daemon(3)");
 
 	drop_privileges(pw);
 	set_defaults();
