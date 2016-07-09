@@ -1,0 +1,179 @@
+diff --git a/dhcpd/bpf.h b/dhcpd/bpf.h
+index 2f694a1..71c238b 100644
+--- a/dhcpd/bpf.h
++++ b/dhcpd/bpf.h
+@@ -15,7 +15,8 @@
+  */
+ 
+ #pragma once
+-#include <net/bpf.h>
++#include <pcap/bpf.h>
++#define bpf_insn sock_filter
+ 
+ /*
+  * BPF filters can be compiled using libraries such as libpcap.  tcpdump -d
+diff --git a/dhcpd/control.c b/dhcpd/control.c
+index 96f8b38..42d0a20 100644
+--- a/dhcpd/control.c
++++ b/dhcpd/control.c
+@@ -27,7 +27,7 @@
+ #include <fcntl.h>
+ #include <imsg.h>
+ #include <stdlib.h>
+-#include <string.h>
++#include <bsd/string.h>
+ #include <unistd.h>
+ 
+ #include "dhcpd.h"
+@@ -335,7 +335,7 @@ control_statistics_unknown_options(struct ctl_conn *ctl)
+ int
+ control_init(char *path, uid_t uid, gid_t gid)
+ {
+-	struct sockaddr_un sun = { sizeof PATH_CTLSOCK, AF_UNIX, PATH_CTLSOCK };
++	struct sockaddr_un sun = { AF_UNIX, PATH_CTLSOCK };
+ 	int s;
+ 
+ 	if (path) {
+@@ -344,7 +344,6 @@ control_init(char *path, uid_t uid, gid_t gid)
+ 			warnx("%s: path too long: %s", __func__, path);
+ 			return (-1);
+ 		}
+-		sun.sun_len = len;
+ 		sun.sun_family = AF_UNIX;
+ 	}
+ 	else
+diff --git a/dhcpd/dhcpd.c b/dhcpd/dhcpd.c
+index 7507d01..3cf1131 100644
+--- a/dhcpd/dhcpd.c
++++ b/dhcpd/dhcpd.c
+@@ -24,9 +24,9 @@
+ #include <stdbool.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+-#include <string.h>
++#include <bsd/string.h>
+ #include <time.h>
+-#include <unistd.h>
++#include <bsd/unistd.h>
+ 
+ #include "dhcpd.h"
+ 
+diff --git a/dhcpd/dhcpd.h b/dhcpd/dhcpd.h
+index 1846451..3991630 100644
+--- a/dhcpd/dhcpd.h
++++ b/dhcpd/dhcpd.h
+@@ -16,7 +16,10 @@
+ 
+ #pragma once
+ #include <sys/queue.h>
++#include <sys/time.h>
+ #include <sys/tree.h>
++#include <net/ethernet.h>
++#include <netinet/ether.h>
+ #include <netinet/in.h>
+ #include <netinet/ip.h>
+ #include <netinet/udp.h>
+@@ -24,7 +27,7 @@
+ 
+ #include "control.h"
+ 
+-#define	UNPRIVILEGED_USER	"_dhcp"
++#define	UNPRIVILEGED_USER	"dhcp"
+ #define	CHROOT_PATH	"/var/empty"
+ #define	PATH_CTLSOCK	"/var/run/dhcpd.sock"
+ #define	PATH_DHCPCTL	"/usr/sbin/dhcpctl"
+diff --git a/dhcpd/group.c b/dhcpd/group.c
+index b577528..177031e 100644
+--- a/dhcpd/group.c
++++ b/dhcpd/group.c
+@@ -16,8 +16,8 @@
+ 
+ #include <limits.h>
+ #include <stdio.h>
+-#include <stdlib.h>
+-#include <string.h>
++#include <bsd/stdlib.h>
++#include <bsd/string.h>
+ 
+ #include "dhcpd.h"
+ #include "debug.h"
+diff --git a/dhcpd/interface.c b/dhcpd/interface.c
+index ba9e769..e3c5af5 100644
+--- a/dhcpd/interface.c
++++ b/dhcpd/interface.c
+@@ -22,8 +22,8 @@
+ #include <net/route.h>
+ #include <event.h>
+ #include <ifaddrs.h>
+-#include <stdlib.h>
+-#include <string.h>
++#include <bsd/stdlib.h>
++#include <bsd/string.h>
+ #include <unistd.h>
+ 
+ #include "dhcpd.h"
+diff --git a/dhcpd/lease.c b/dhcpd/lease.c
+index b98a539..d849751 100644
+--- a/dhcpd/lease.c
++++ b/dhcpd/lease.c
+@@ -18,8 +18,8 @@
+ #include <event.h>
+ #include <limits.h>
+ #include <stdbool.h>
+-#include <stdlib.h>
+-#include <string.h>
++#include <bsd/stdlib.h>
++#include <bsd/string.h>
+ #include <time.h>
+ 
+ #include "dhcpd.h"
+diff --git a/dhcpd/privsep.c b/dhcpd/privsep.c
+index da51d45..a383e9e 100644
+--- a/dhcpd/privsep.c
++++ b/dhcpd/privsep.c
+@@ -26,7 +26,7 @@
+ #include <poll.h>
+ #include <signal.h>
+ #include <stdlib.h>
+-#include <string.h>
++#include <bsd/string.h>
+ #include <unistd.h>
+ 
+ #include "dhcpd.h"
+@@ -51,7 +51,7 @@ udp_socket_open(struct in_addr *a)
+ {
+ 	int fd;
+ 	struct sockaddr_in sin = {
+-	    sizeof sin, AF_INET, htons(BOOTP_SERVER_PORT), *a, {0}
++	    AF_INET, htons(BOOTP_SERVER_PORT), *a, {0}
+ 	};
+ 
+ 	if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+diff --git a/dhcpd/protocol_logic.c b/dhcpd/protocol_logic.c
+index 0f96f91..1e65b2a 100644
+--- a/dhcpd/protocol_logic.c
++++ b/dhcpd/protocol_logic.c
+@@ -16,8 +16,8 @@
+ 
+ #include <arpa/inet.h>
+ #include <stdio.h>
+-#include <string.h>
+-#include <vis.h>
++#include <bsd/string.h>
++#include <bsd/vis.h>
+ 
+ #include "dhcpd.h"
+ 
+diff --git a/dhcpd/protocol_output.c b/dhcpd/protocol_output.c
+index 1c52aa5..f700837 100644
+--- a/dhcpd/protocol_output.c
++++ b/dhcpd/protocol_output.c
+@@ -14,7 +14,7 @@
+  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  */
+ 
+-#include <string.h>
++#include <bsd/string.h>
+ 
+ #include "dhcpd.h"
+ 

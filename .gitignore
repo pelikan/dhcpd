@@ -1,3 +1,5 @@
+dhcpd/dhcpd
+dhcpctl/dhcpctl
 # Object files
 *.o
 *.ko
