@@ -434,8 +434,6 @@ void	control_dispatch(int, short, void *);
 size_t	controllers(void);
 
 /* interface.c */
-int	rtsock_init(void);
-void	rtsock_dispatch(int, short, void *);
 size_t	interfaces(void);
 ssize_t	interfaces_dump(struct ctl_interface **, ssize_t *);
 ssize_t	interfaces_discover(void);
@@ -450,9 +448,14 @@ ssize_t	ipv4_addr_dump(struct ctl_address **, ssize_t *);
 struct in_addr	 ipv4_addr(void *);
 struct in_addr	 destination(struct reply *, struct request *, u_int16_t *);
 
+u_int8_t	 mask2plen32(u_int32_t);
 u_int32_t	 plen2mask32(u_int8_t);
 int		 sendit(struct request *, struct reply *);
 void		*bpf_address(struct request *);
+
+/* `uname`.c */
+int	rtsock_init(void);
+void	rtsock_dispatch(int, short, void *);
 
 /* lease.c */
 void	lease_extend(struct reply *);

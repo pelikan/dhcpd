@@ -22,7 +22,6 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/route.h>
-#include <assert.h>
 #include <event.h>
 #include <ifaddrs.h>
 #include <stdlib.h>
@@ -30,77 +29,12 @@
 #include <unistd.h>
 
 #include "dhcpd.h"
+#include "interface.h"
 
-/*
- * Network interfaces represent potential BPF endpoints where local packets
- * arrive.  The user tells us which ones does she want to listen on and as
- * soon as they arrive in the system, they'll go into the @ifs_used tree.
- * BPF descriptor, once obtained from the privileged child, is added to it.
- *
- * The @ifs_nuse tree stores interfaces the user's not interested in, but
- * already present in the system.  That is, of course, if @want_all_ifs is
- * false.  If we wait for an interface to appear in the future, its struct
- * is waiting on us on @ifs_want.
- *
- * Interfaces in the system arrive and depart, the "wanted" status is added
- * or deleted via the appropriate imsgs.
- */
-struct network_interface {
-	RB_ENTRY(network_interface)	 interfaces;
-	struct shared_network		*shared;
-	unsigned	 index;
-	char		 name[IF_NAMESIZE];
-	u_int8_t	 mac[ETHER_ADDR_LEN];
-	int		 oper_state; /* RFC 2863 */
-
-	/* BPF */
-	int		 fd;
-	struct event	 ev;
-	u_int8_t	*rbuf;
-	int		 size;
-};
-
-RB_HEAD(network_interface_tree, network_interface);
 struct network_interface_tree	ifs_used = RB_INITIALIZER(&ifs_used);
 struct network_interface_tree	ifs_nuse = RB_INITIALIZER(&ifs_nuse);
 struct network_interface_tree	ifs_want = RB_INITIALIZER(&ifs_want);
 
-/*
- * Network addresses represent potential UDP sockets where either relayed
- * packets from remote networks or local tunnels arrive.  Some addresses
- * are in use (tree @ifa_used), some are just present in the system (tree
- * @ifa_nuse) and some are requested to be served on, but not yet present
- * on any interface (tree @ifa_want).
- *
- * Binding on specific addresses prevents us from having UDP multihoming
- * problems with choosing and filling in the right source address.
- *
- * With an IPv4 address to listen on, the user can optionally specify a
- * shared_network where unrelayed hosts from this fd will be looked for.
- * Relayed packets may set a different shared_network either because an
- * entry in the tree binds that relay to it or the wildcard "relay_any".
- *
- * If, for example, multiple 10.0.0.1's are relaying from two different
- * networks, NAT has to be used to distinguish the UDP socket to which
- * packets from particular parts arrive.  NAT obviously doesn't affect
- * bootp->giaddr but the same relay address can be used differently on
- * different UDP sockets to distinguish these networks.
- */
-struct network_address {
-	RB_ENTRY(network_address)	 addrs;
-	struct network_interface 	*ni;
-	struct shared_network		*shared;
-	struct relay_tree		 relays;
-	struct relay			*relay_any;
-	struct in_addr	 ipv4;
-	u_int8_t	 prefixlen;
-
-	/* UDP */
-	int		 fd;
-	struct event	 ev;
-};
-
-RB_HEAD(ipv4_address_tree, network_address);
 struct ipv4_address_tree	ifa_used = RB_INITIALIZER(&ifa_used);
 struct ipv4_address_tree	ifa_nuse = RB_INITIALIZER(&ifa_nuse);
 struct ipv4_address_tree	ifa_want = RB_INITIALIZER(&ifa_want);
@@ -128,7 +62,7 @@ plen2mask32(u_int8_t plen)
 	return plen ? ~((1UL << (32 - plen)) - 1) : 0;
 }
 
-static u_int8_t
+u_int8_t
 mask2plen32(u_int32_t mask)
 {
 	u_int8_t i;
@@ -206,7 +140,7 @@ interfaces_dump(struct ctl_interface **bufp, ssize_t *lenp)
 	return (-1L);
 }
 
-static struct network_interface *
+struct network_interface *
 interface_by_name(struct network_interface_tree *tree, const char *name)
 {
 	struct network_interface fake;
@@ -307,7 +241,7 @@ interface_assign_bpf(char *name, int fd)
 	log_debug("interface %s: BPF fd %d assigned, %d B", name, fd, ni->size);
 }
 
-static struct network_interface *
+struct network_interface *
 interface_arrived(unsigned idx, const char *name)
 {
 	struct network_interface *ni;
@@ -373,7 +307,7 @@ interface_departure_sanity_checks(struct network_interface *ni)
 		}
 }
 
-static void
+void
 interface_departed(const char *name)
 {
 	struct network_interface_tree *tree;
@@ -642,7 +576,7 @@ ipv4_addr_assign_udp(u_int32_t *ipv4, int fd)
 	log_debug("assigned UDP socket %d for %s", fd, inet_ntoa(na->ipv4));
 }
 
-static struct network_address *
+struct network_address *
 ipv4_addr_arrived(struct network_interface *ni, u_int32_t ipv4, u_int8_t plen)
 {
 	struct network_address *na, fake;
@@ -696,7 +630,7 @@ ipv4_addr_arrived(struct network_interface *ni, u_int32_t ipv4, u_int8_t plen)
 	return (na);
 }
 
-static void
+void
 ipv4_addr_departed(u_int32_t ipv4, u_int8_t plen)
 {
 	struct network_address *na, fake;
@@ -1202,189 +1136,6 @@ interfaces_destroy(void)
 		free(ni);
 	}
 }
-
-int
-rtsock_init(void)
-{
-	unsigned rtfilter, async = 1;
-	int s;
-
-	if ((s = socket(PF_ROUTE, SOCK_RAW, PF_UNSPEC)) == -1) {
-		log_warn("creating the routing socket (RAW/UNSPEC)");
-		return (-1);
-	}
-
-	if (ioctl(s, FIONBIO, &async) == -1) {
-		log_warn("ioctl FIONBIO rtsock");
-		goto fail;
-	}
-
-	rtfilter = ROUTE_FILTER(RTM_NEWADDR) | ROUTE_FILTER(RTM_DELADDR) |
-	    ROUTE_FILTER(RTM_IFANNOUNCE) | ROUTE_FILTER(RTM_IFINFO);
-	if (setsockopt(s, PF_ROUTE, ROUTE_MSGFILTER,
-	    &rtfilter, sizeof rtfilter) == -1) {
-		log_warn("setsockopt ROUTE_MSGFILTER");
-		goto fail;
-	}
-
-	return (s);
-
- fail:
-	close(s);
-	return (-1);
-}
-
-#define ROUNDUP(a)	\
-	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
-
-static void
-ifa_get_addrs(struct ifa_msghdr *ia, struct sockaddr **rti_info)
-{
-	char *p = (char *)ia + ia->ifam_hdrlen;
-	struct sockaddr *sa = (struct sockaddr *)p;;
-	unsigned i;
-
-	for (i = 0; i < RTAX_MAX; ++i) {
-		if (ia->ifam_addrs & (1 << i)) {
-			rti_info[i] = sa;
-			p = (char *)sa + ROUNDUP(sa->sa_len);
-			sa = (struct sockaddr *)p;
-		}
-		else
-			rti_info[i] = NULL;
-	}
-}
-
-#define READ_THE_REST(wholepkt)				\
-	while (total != (wholepkt)) {			\
-		rcvd = read(sock, buf + total,		\
-		    (wholepkt) - total);		\
-		if (rcvd == -1) {			\
-			log_warn("read rtsock rest");	\
-			return;				\
-		}					\
-		else if (rcvd == 0) {			\
-			log_warn("rtsock closed");	\
-			return;				\
-		}					\
-		total += rcvd;				\
-	}
-
-void
-rtsock_dispatch(int sock, short ev, void *arg)
-{
-	union {
-		struct rt_msghdr rt;
-		struct if_msghdr i;
-		struct ifa_msghdr ia;
-		struct if_announcemsghdr ann;
-	} *m;
-	char buf[sizeof *m + RTAX_MAX * sizeof(struct sockaddr_storage)];
-	struct sockaddr *rti_info[RTAX_MAX];
-	struct sockaddr_in *sin;
-	struct sockaddr_dl *sdl;
-	u_int32_t ipv4 = 0;
-	u_int8_t plen = 0;
-	char ifname[IF_NAMESIZE + 1];
-	int ifnamlen = 0;
-	ssize_t rcvd, total;
-	struct network_interface *ni;
-
-	assert(ev == EV_READ);
-	assert(arg == NULL);
-
-	if ((rcvd = read(sock, buf, sizeof *m)) == -1) {
-		log_warn("read rtsock");
-		return;
-	}
-	if (rcvd == 0) {
-		log_warnx("routing socket closed");
-		return;
-	}
-	total = rcvd;
-	m = (void *) buf;
-	switch (m->rt.rtm_type) {
-	case (RTM_NEWADDR):
-		READ_THE_REST(m->ia.ifam_msglen);
-		ifa_get_addrs(&m->ia, rti_info);
-
-		if (rti_info[RTAX_NETMASK]) {
-			sin = (struct sockaddr_in *)rti_info[RTAX_NETMASK];
-			plen = mask2plen32(ntohl(sin->sin_addr.s_addr));
-		}
-
-		if (rti_info[RTAX_IFP]) {
-			sdl = (struct sockaddr_dl *)rti_info[RTAX_IFP];
-			ifnamlen = MIN(sdl->sdl_nlen, IF_NAMESIZE);
-			memcpy(ifname, sdl->sdl_data, ifnamlen);
-			ifname[ifnamlen] = '\0';
-			if ((ni = interface_by_name(&ifs_used, ifname)) == NULL)
-				ni = interface_by_name(&ifs_nuse, ifname);
-		}
-		else
-			ni = NULL;
-
-		if (rti_info[RTAX_IFA]) {
-			sin = (struct sockaddr_in *)rti_info[RTAX_IFA];
-			ipv4 = sin->sin_addr.s_addr;
-		}
-		if (ni && ipv4 && plen)
-			ipv4_addr_arrived(ni, ipv4, plen);
-		else
-			log_warnx("RTM_NEWADDR wrong: ni %p addr 0x%x plen %d",
-			    ni, ipv4, plen);
-		break;
-
-	case (RTM_DELADDR):
-		READ_THE_REST(m->ia.ifam_msglen);
-		ifa_get_addrs(&m->ia, rti_info);
-
-		if (rti_info[RTAX_IFA]) {
-			sin = (struct sockaddr_in *)rti_info[RTAX_IFA];
-			ipv4 = sin->sin_addr.s_addr;
-		}
-		/*
-		 * Very common case: one subnet, carpdev /24, carp /32.
-		 * Absolutely need to know which one is going away.
-		 */
-		if (rti_info[RTAX_NETMASK]) {
-			sin = (struct sockaddr_in *)rti_info[RTAX_NETMASK];
-			plen = mask2plen32(ntohl(sin->sin_addr.s_addr));
-		}
-		if (ipv4 && plen)
-			ipv4_addr_departed(ipv4, plen);
-		else
-			log_warnx("RTM_DELADDR wrong: addr 0x%x plen %d",
-			    ipv4, plen);
-		break;
-
-	case (RTM_IFINFO):
-		log_warnx("RTM_IFINFO: iface %u: status %s", m->i.ifm_index,
-		    (m->i.ifm_flags & IFF_UP) ? "UP" : "DOWN");
-		break;
-
-	case (RTM_IFANNOUNCE):
-		switch (m->ann.ifan_what) {
-		case (IFAN_ARRIVAL):
-			interface_arrived(m->ann.ifan_index, m->ann.ifan_name);
-			break;
-		case (IFAN_DEPARTURE):
-			interface_departed(m->ann.ifan_name);
-			break;
-		default:
-			log_warnx("ANNOUNCE index %u what %u name %s",
-			    m->ann.ifan_index, m->ann.ifan_what,
-			    m->ann.ifan_name);
-			break;
-		}
-		break;
-
-	default:
-		log_warnx("rcvd routing msg type %d", m->rt.rtm_type);
-		break;
-	}
-}
-#undef READ_THE_REST
 
 
 /*
