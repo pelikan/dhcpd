@@ -145,10 +145,18 @@ index 96f8b38..42d0a20 100644
  	}
  	else
 diff --git a/dhcpd/dhcpd.c b/dhcpd/dhcpd.c
-index 3b8ec91..7ed8ecc 100644
+index 3b8ec91..2cd29b0 100644
 --- a/dhcpd/dhcpd.c
 +++ b/dhcpd/dhcpd.c
-@@ -24,9 +24,9 @@
+@@ -14,6 +14,7 @@
+  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  */
+ 
++#define _GNU_SOURCE
+ #include <sys/wait.h>
+ #include <assert.h>
+ #include <err.h>
+@@ -24,12 +25,15 @@
  #include <stdbool.h>
  #include <stdio.h>
  #include <stdlib.h>
@@ -160,8 +168,14 @@ index 3b8ec91..7ed8ecc 100644
  
  #include "dhcpd.h"
  
++/* Can't include <grp.h> on Linux, struct group collision. */
++int setgroups(size_t, const gid_t *);
++
+ enum {
+ 	CONTROL_SOCKET,
+ 	ROUTING_SOCKET,
 diff --git a/dhcpd/dhcpd.h b/dhcpd/dhcpd.h
-index 1846451..3991630 100644
+index 4df764b..796be5d 100644
 --- a/dhcpd/dhcpd.h
 +++ b/dhcpd/dhcpd.h
 @@ -16,7 +16,10 @@
@@ -200,13 +214,13 @@ index b577528..177031e 100644
  #include "dhcpd.h"
  #include "debug.h"
 diff --git a/dhcpd/interface.c b/dhcpd/interface.c
-index e6821ee..ad58f58 100644
+index 48a9acc..abe6f92 100644
 --- a/dhcpd/interface.c
 +++ b/dhcpd/interface.c
-@@ -22,8 +22,8 @@
- #include <net/route.h>
+@@ -18,8 +18,8 @@
+ #include <sys/socket.h>
+ #include <arpa/inet.h>
  #include <event.h>
- #include <ifaddrs.h>
 -#include <stdlib.h>
 -#include <string.h>
 +#include <bsd/stdlib.h>
@@ -214,7 +228,7 @@ index e6821ee..ad58f58 100644
  #include <unistd.h>
  
  #include "dhcpd.h"
-@@ -224,10 +224,10 @@ interface_arrived(unsigned idx, const char *name)
+@@ -220,10 +220,10 @@ interface_arrived(unsigned idx, const char *name)
  		RB_REMOVE(network_interface_tree, &ifs_want, ni);
  
  	/* Sanity check.  We need to know about everything. */
@@ -265,6 +279,18 @@ index b98a539..d849751 100644
  #include <time.h>
  
  #include "dhcpd.h"
+diff --git a/dhcpd/log.c b/dhcpd/log.c
+index a562749..775cf1a 100644
+--- a/dhcpd/log.c
++++ b/dhcpd/log.c
+@@ -16,6 +16,7 @@
+  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  */
+ 
++#define _GNU_SOURCE
+ #include <errno.h>
+ #include <stdarg.h>
+ #include <stdio.h>
 diff --git a/dhcpd/privsep.c b/dhcpd/privsep.c
 index 448e819..9c78ab6 100644
 --- a/dhcpd/privsep.c

@@ -165,6 +165,7 @@ rtnl_add_link(struct nlmsghdr *hdr, struct ifinfomsg *ifi, ssize_t len)
 	struct rtattr *p;
 	u_int8_t *mac = NULL;
 
+	(void) hdr;
 	log_debug_io("RTM_NEWLINK ifi_index %d, got %zd want %u",
 	    ifi->ifi_index, len, hdr->nlmsg_len);
 
@@ -194,6 +195,7 @@ rtnl_del_link(struct nlmsghdr *hdr, struct ifinfomsg *ifi, ssize_t len)
 	char ifname[IF_NAMESIZE + 1];
 	struct rtattr *p;
 
+	(void) hdr;
 	log_debug_io("RTM_DELLINK ifi_index %d, got %zd want %u",
 	    ifi->ifi_index, len, hdr->nlmsg_len);
 
@@ -221,6 +223,7 @@ rtnl_add_addr(struct nlmsghdr *hdr, struct ifaddrmsg *ifa, ssize_t len)
 	if (ifa->ifa_family != AF_INET)
 		return;
 
+	(void) hdr;
 	log_debug_io("RTM_NEWADDR ifa_index %d, ifa_plen %d, got %zd want %u",
 	    ifa->ifa_index, ifa->ifa_prefixlen, len, hdr->nlmsg_len);
 
@@ -268,6 +271,7 @@ rtnl_del_addr(struct nlmsghdr *hdr, struct ifaddrmsg *ifa, ssize_t len)
 	if (ifa->ifa_family != AF_INET)
 		return;
 
+	(void) hdr;
 	log_debug_io("RTM_DELADDR ifa_index %d, ifa_plen %d, got %zd want %u",
 	    ifa->ifa_index, ifa->ifa_prefixlen, len, hdr->nlmsg_len);
 
