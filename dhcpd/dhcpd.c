@@ -224,6 +224,12 @@ main(int argc, char *argv[])
 	stats[STATS_DAEMON_STARTED] = time(NULL);
 	event_dispatch();
 
+	for (int i = 0; i <= PRIVSEP_SOCKET; ++i)
+		event_del(&events[i]);
+
+	for (int i = 0; i < __SIGNAL_HANDLERS__; ++i)
+		signal_del(&sigevents[i]);
+
 	close(control_sock);
 	unsatisfied_purge();
 	interfaces_destroy();

@@ -1091,6 +1091,7 @@ interfaces_destroy(void)
 		RB_REMOVE(network_interface_tree, &ifs_used, ni);
 		close(ni->fd);
 		shared_network_free(ni->shared);
+		free(ni->rbuf);
 		free(ni);
 	}
 	RB_FOREACH_SAFE(ni, network_interface_tree, &ifs_nuse, ni_temp) {

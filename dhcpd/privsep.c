@@ -158,7 +158,9 @@ privileged_main(void)
 
 			switch (imsg.hdr.type) {
 			case IMSG_BPF:
-				if (pld_len != IF_NAMESIZE)
+				/* Only accept short NUL-terminated strings. */
+				if (pld_len > IF_NAMESIZE ||
+				    ((char *)imsg.data)[pld_len - 1] != '\0')
 					goto fail;
 
 				if ((fd = bpf_socket_open(imsg.data)) == -1)
@@ -203,7 +205,7 @@ unprivileged_ask_for_bpf(const char *ifname)
 	char buf[IF_NAMESIZE];
 
 	strlcpy(buf, ifname, IF_NAMESIZE);
-	imsg_compose(&imsgbuf, IMSG_BPF, 0, 0, -1, buf, sizeof buf);
+	imsg_compose(&imsgbuf, IMSG_BPF, 0, 0, -1, buf, strlen(buf) + 1);
 	return (imsg_flush(&imsgbuf) == -1);
 }
 

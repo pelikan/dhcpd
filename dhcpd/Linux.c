@@ -52,6 +52,7 @@ bpf_register_receive(int sock)
 	int lock = 1;
 
 	/* XXX Linux apparently doesn't offer separate read/write filters. */
+	memset(&bpf, 0, sizeof bpf);
 	bpf.len = sizeof dhcp_bpf_rfilter / sizeof *dhcp_bpf_rfilter;
 	bpf.filter = dhcp_bpf_rfilter;
 
