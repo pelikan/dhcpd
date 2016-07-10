@@ -100,7 +100,7 @@ dhcp_options_parse(u_int8_t *data, size_t len, u_int8_t **opts)
 
 	while (needs_parsing) {
 		const u_int8_t type = p[0];
-		const size_t length = p[1] + 2UL;
+		const size_t length = needs_parsing > 1 ? p[1] + 2UL : 0;
 
 		if (opts[type]) {
 			++stats[STATS_DHCP_DUPLICATE_OPTIONS];
@@ -108,7 +108,7 @@ dhcp_options_parse(u_int8_t *data, size_t len, u_int8_t **opts)
 			return (-1);
 		}
 
-		if (length > needs_parsing) {
+		if (length > needs_parsing || length < 2) {
 			/* It's actually very common, this padding after END. */
 			if (type == DHCP_OPT_END)
 				return (len);
