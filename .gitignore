@@ -1,6 +1,7 @@
 dhcpd/dhcpd
 dhcpctl/dhcpctl
 dhcpd/test/fuzz_bootp_input
+
 # Object files
 *.o
 *.ko
@@ -24,3 +25,8 @@ dhcpd/test/fuzz_bootp_input
 *.i*86
 *.x86_64
 *.hex
+
+# Code coverage
+*.gcda
+*.gcno
+*.gcov
