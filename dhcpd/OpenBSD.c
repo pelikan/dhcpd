@@ -315,6 +315,55 @@ rtsock_dispatch(int sock, short ev, void *arg)
 }
 #undef READ_THE_REST
 
+int
+interfaces_discover(void)
+{
+	struct ifaddrs *ifap, *p;
+	unsigned idx;
+	u_int8_t plen;
+	struct sockaddr_in *sin;
+	struct sockaddr_in *m;
+	struct network_interface *nif = NULL;
+	int count = 0;
+
+	if (getifaddrs(&ifap) < 0) {
+		log_warn("getifaddrs");
+		return (-1);
+	}
+	for (p = ifap; p != NULL; p = p->ifa_next) {
+                if ((p->ifa_flags & (IFF_LOOPBACK | IFF_POINTOPOINT)))
+			continue;
+
+		sin = (struct sockaddr_in *) p->ifa_addr;
+		m = (struct sockaddr_in *) p->ifa_netmask;
+
+		/* This function is only called at the start.  No duplicates. */
+		idx = if_nametoindex(p->ifa_name);
+		if (nif == NULL || strcmp(nif->name, p->ifa_name)) {
+			nif = interface_arrived(idx, p->ifa_name);
+			if (nif == NULL)
+				goto fail;
+			++count;
+		}
+
+		switch (p->ifa_addr->sa_family) {
+		case (AF_INET):
+			plen = mask2plen32(ntohl(m->sin_addr.s_addr));
+			if (ipv4_addr_arrived(nif, sin->sin_addr.s_addr,
+			    plen) == NULL)
+				goto fail;
+			break;
+		}
+	}
+
+	freeifaddrs(ifap);
+	return (count);
+
+ fail:
+	freeifaddrs(ifap);
+	return (-1);
+}
+
 void
 bpf_event(int fd, short ev, void *arg)
 {

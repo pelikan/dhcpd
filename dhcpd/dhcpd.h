@@ -436,7 +436,6 @@ size_t	controllers(void);
 /* interface.c */
 size_t	interfaces(void);
 ssize_t	interfaces_dump(struct ctl_interface **, ssize_t *);
-ssize_t	interfaces_discover(void);
 void	interfaces_destroy(void);
 char *	interface_add(struct ctl_interface *);
 char *	interface_delete(struct ctl_interface *);
@@ -456,6 +455,7 @@ void		*bpf_address(struct request *);
 /* `uname`.c */
 int	rtsock_init(void);
 void	rtsock_dispatch(int, short, void *);
+int	interfaces_discover(void);
 void	bpf_event(int, short, void *);
 size_t	bpf_required_size(int);
 

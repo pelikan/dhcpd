@@ -165,7 +165,7 @@ rtnl_add_link(struct nlmsghdr *hdr, struct ifinfomsg *ifi, ssize_t len)
 	struct rtattr *p;
 	u_int8_t *mac = NULL;
 
-	log_debug("RTM_NEWLINK ifi_index %d, got %zd want %u\n",
+	log_debug_io("RTM_NEWLINK ifi_index %d, got %zd want %u",
 	    ifi->ifi_index, len, hdr->nlmsg_len);
 
 	RTATTR_FOREACH(p, ifinfomsg, ifi, remain) {
@@ -194,7 +194,7 @@ rtnl_del_link(struct nlmsghdr *hdr, struct ifinfomsg *ifi, ssize_t len)
 	char ifname[IF_NAMESIZE + 1];
 	struct rtattr *p;
 
-	log_debug("RTM_DELLINK ifi_index %d, got %zd want %u\n",
+	log_debug_io("RTM_DELLINK ifi_index %d, got %zd want %u",
 	    ifi->ifi_index, len, hdr->nlmsg_len);
 
 	RTATTR_FOREACH(p, ifinfomsg, ifi, remain) {
@@ -221,7 +221,7 @@ rtnl_add_addr(struct nlmsghdr *hdr, struct ifaddrmsg *ifa, ssize_t len)
 	if (ifa->ifa_family != AF_INET)
 		return;
 
-	log_debug("RTM_NEWADDR ifa_index %d, ifa_plen %d, got %zd want %u\n",
+	log_debug_io("RTM_NEWADDR ifa_index %d, ifa_plen %d, got %zd want %u",
 	    ifa->ifa_index, ifa->ifa_prefixlen, len, hdr->nlmsg_len);
 
 	RTATTR_FOREACH(p, ifaddrmsg, ifa, remain) {
@@ -268,7 +268,7 @@ rtnl_del_addr(struct nlmsghdr *hdr, struct ifaddrmsg *ifa, ssize_t len)
 	if (ifa->ifa_family != AF_INET)
 		return;
 
-	log_debug("RTM_DELADDR ifa_index %d, ifa_plen %d, got %zd want %u\n",
+	log_debug_io("RTM_DELADDR ifa_index %d, ifa_plen %d, got %zd want %u",
 	    ifa->ifa_index, ifa->ifa_prefixlen, len, hdr->nlmsg_len);
 
 	RTATTR_FOREACH(p, ifaddrmsg, ifa, remain) {
@@ -292,25 +292,33 @@ rtnl_del_addr(struct nlmsghdr *hdr, struct ifaddrmsg *ifa, ssize_t len)
 		    ipv4, ifa->ifa_prefixlen);
 }
 
-void
+int
 routing_socket_parse(struct nlmsghdr *hdr, ssize_t len)
 {
+	struct nlmsgerr *e;
+
 	switch (hdr->nlmsg_type) {
 	case (RTM_NEWLINK):
 		rtnl_add_link(hdr, NLMSG_DATA(hdr), len);
-		break;
+		return 0;
 	case (RTM_DELLINK):
 		rtnl_del_link(hdr, NLMSG_DATA(hdr), len);
-		break;
+		return 0;
 	case (RTM_NEWADDR):
 		rtnl_add_addr(hdr, NLMSG_DATA(hdr), len);
-		break;
+		return 0;
 	case (RTM_DELADDR):
 		rtnl_del_addr(hdr, NLMSG_DATA(hdr), len);
-		break;
+		return 0;
+	case (NLMSG_DONE):
+		return 1;
+	case (NLMSG_ERROR):
+		e = NLMSG_DATA(hdr);
+		log_warn("Netlink sent an error: %s", strerror(e->error));
+		return 1;
 	default:
-		log_warnx("%s: nlmsg_type %u\n", __func__, hdr->nlmsg_type);
-		break;
+		log_warnx("%s: nlmsg_type %u", __func__, hdr->nlmsg_type);
+		return 0;
 	}
 }
 
@@ -344,6 +352,69 @@ rtsock_dispatch(int sock, short ev, void *arg)
 	NLMSG_FOREACH(n, buf, rcvd) {
 		routing_socket_parse(n, rcvd);
 	}
+}
+
+/* Invoked at startup because getifaddrs(3) has been broken by GNU libc. */
+void
+rtnl_dump(int fd, u_int16_t cmd, sa_family_t family, unsigned seq)
+{
+	struct {
+		struct nlmsghdr hdr;
+		struct ifinfomsg ifi;
+		char attrbuf[8192];
+	} packet;
+	struct sockaddr_nl snl;
+	struct sockaddr *sa = (void *) &snl;
+	struct nlmsghdr *n;
+	socklen_t salen = sizeof snl;
+	ssize_t sent, got;
+	size_t len;
+
+	memset(&packet, 0, sizeof packet);
+	packet.hdr.nlmsg_len = NLMSG_LENGTH(sizeof packet.ifi);
+	packet.hdr.nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+	packet.hdr.nlmsg_type = cmd;
+	packet.hdr.nlmsg_seq = seq;
+	packet.ifi.ifi_family = family;
+
+	len = NLMSG_ALIGN(packet.hdr.nlmsg_len);
+
+	memset(&snl, 0, sizeof snl);
+	snl.nl_family = AF_NETLINK;
+
+	if ((sent = sendto(fd, &packet, len, 0, sa, sizeof snl)) == -1) {
+		log_warn("%s: sendto", __func__);
+		return;
+	}
+
+	do {
+		got = recvfrom(fd, &packet, sizeof packet, 0, sa, &salen);
+		if (got == -1) {
+			log_warn("%s: recvfrom", __func__);
+			return;
+		}
+		log_debug_io("%s: received %zd bytes (seq %u)",
+		    __func__, got, packet.hdr.nlmsg_seq);
+
+		NLMSG_FOREACH(n, &packet, got) {
+			if (routing_socket_parse(n, got))
+				return;
+		}
+	} while (1 /* until the arrival of NLMSG_DONE */);
+}
+
+int
+interfaces_discover(void)
+{
+	int fd;
+
+	if ((fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE)) == -1)
+		return (-1);
+
+	rtnl_dump(fd, RTM_GETLINK, AF_UNSPEC, 1);
+	rtnl_dump(fd, RTM_GETADDR, AF_INET, 2);
+
+	return close(fd);
 }
 
 void
