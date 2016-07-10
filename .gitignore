@@ -1,5 +1,6 @@
 dhcpd/dhcpd
 dhcpctl/dhcpctl
+dhcpd/test/fuzz_bootp_input
 # Object files
 *.o
 *.ko

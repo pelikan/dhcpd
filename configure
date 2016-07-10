@@ -2,7 +2,7 @@
 
 SUCCESS="Successfully patched.  Now do 'cd dhcpd && make'."
 
-if [ $(uname) == "Linux" ]; then
+if [ "$(uname)" = "Linux" ]; then
 	patch -p1 < compat/Linux.diff && echo "${SUCCESS}"
 else
 	echo "Don't know how to build on "$(uname)

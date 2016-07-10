@@ -15,7 +15,7 @@ event_set(struct event *x, int y, short z, void (*f)(int, short, void *), void *
 }
 
 int
-event_pending(struct event *x, short y, struct timeval *tv)
+event_pending(const struct event *x, short y, struct timeval *tv)
 {
 	(void)x; (void)y; (void)tv;
 	return 0;

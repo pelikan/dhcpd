@@ -1,3 +1,66 @@
+diff --git a/dhcpctl/dhcpctl.c b/dhcpctl/dhcpctl.c
+index 1d49e99..8dd195a 100644
+--- a/dhcpctl/dhcpctl.c
++++ b/dhcpctl/dhcpctl.c
+@@ -26,11 +26,11 @@
+ #include <inttypes.h>
+ #include <pwd.h>
+ #include <stdio.h>
+-#include <stdlib.h>
+-#include <string.h>
++#include <bsd/stdlib.h>
++#include <bsd/string.h>
+ #include <time.h>
+ #include <unistd.h>
+-#include <vis.h>
++#include <bsd/vis.h>
+ 
+ #include "dhcpd.h"
+ #include "parser.h"
+@@ -38,7 +38,7 @@
+ #define	DHCPD_SAID		"dhcpd said: %s"
+ #define	DHCPD_WRONG_IMSG	"wrong answer: imsg type %d len %d"
+ 
+-struct sockaddr_un sun = { sizeof PATH_CTLSOCK, AF_UNIX, PATH_CTLSOCK };
++struct sockaddr_un sun = { AF_UNIX, PATH_CTLSOCK };
+ struct imsgbuf ibuf;
+ int quit = 0;
+ char error_buffer[ERR_BUF_SIZE * 4];	/* enough for strvis(3) */
+@@ -1101,7 +1101,6 @@ main(int argc, char *argv[])
+ 			len = strlcpy(sun.sun_path, optarg, sizeof sun.sun_path);
+ 			if (len >= sizeof sun.sun_path)
+ 				errx(1, "path too long: %s", optarg);
+-			sun.sun_len = len;
+ 			break;
+ 		default:
+ 			return usage();
+diff --git a/dhcpctl/parser.c b/dhcpctl/parser.c
+index 6fcd577..1eb78df 100644
+--- a/dhcpctl/parser.c
++++ b/dhcpctl/parser.c
+@@ -27,10 +27,10 @@
+ #include <limits.h>
+ #include <netdb.h>
+ #include <stdio.h>
+-#include <stdlib.h>
+-#include <string.h>
++#include <bsd/stdlib.h>
++#include <bsd/string.h>
+ #include <unistd.h>
+-#include <vis.h>
++#include <bsd/vis.h>
+ 
+ #include "parser.h"
+ 
+@@ -394,7 +394,7 @@ parse_subnet(struct parse_result *tgt, const char *word)
+ 	return inet_aton(ipv4, &tgt->network);
+ }
+ 
+-static __dead void
++static void
+ bad_ip_list(const char *str)
+ {
+ 	char s[64];
 diff --git a/dhcpd/bpf.h b/dhcpd/bpf.h
 index 2f694a1..71c238b 100644
 --- a/dhcpd/bpf.h

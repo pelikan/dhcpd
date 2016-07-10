@@ -50,3 +50,20 @@ What we need now:
 - On commit/expiry/release is a cool feature in ISC DHCP 4.3.  We could use
   such a mechanism to implement DDNS registration; command with environment
   variables containing lease information would do whatever you want it to.
+
+Compiling on Linux:
+===================
+Remember, it's a work in progress.  Your minimal Debian installation will need:
+
+```
+$ apt-get install git libc6-dev libbsd-dev libevent-dev libpcap-dev gcc make pkg-config
+$ git clone https://github.com/pelikan/dhcpd.git
+$ cd dhcpd && ./configure
+$ cd dhcpd && make
+$ cd ../dhcpctl && make
+$ useradd -r -d /var/empty dhcp
+$ mkdir -p /var/empty
+```
+
+The development is mainly done on OpenBSD and Gentoo.  Patches welcome,
+but please try to keep them small.  No autotools!
