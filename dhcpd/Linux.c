@@ -160,21 +160,31 @@ static void
 rtnl_add_link(struct nlmsghdr *hdr, struct ifinfomsg *ifi, ssize_t len)
 {
 	ssize_t remain = len - NLMSG_LENGTH(sizeof *ifi);
-	char ifname[IF_NAMESIZE + 1];
+	struct network_interface *ni = NULL;
+	char ifname[IF_NAMESIZE + 1] = { '\0' };
 	struct rtattr *p;
+	u_int8_t *mac = NULL;
 
 	log_debug("RTM_NEWLINK ifi_index %d, got %zd want %u\n",
 	    ifi->ifi_index, len, hdr->nlmsg_len);
 
 	RTATTR_FOREACH(p, ifinfomsg, ifi, remain) {
 		switch (p->rta_type) {
+		case (IFLA_ADDRESS):
+			if (p->rta_len - sizeof *p == ETHER_ADDR_LEN)
+				mac = (u_int8_t *)(p + 1);
+			break;
 		case (IFLA_IFNAME):
 			extract_ifname(ifname, p);
-			interface_arrived(ifi->ifi_index, ifname);
-			return;
+			ni = interface_arrived(ifi->ifi_index, ifname);
+			break;
 		}
 	}
-	log_warnx("RTM_NEWLINK incomplete");
+
+	if (ni != NULL && mac != NULL)
+		memcpy(&ni->mac, mac, ETHER_ADDR_LEN);
+	else
+		log_warnx("RTM_NEWLINK incomplete: %s", ni ? ifname : "NULL");
 }
 
 static void

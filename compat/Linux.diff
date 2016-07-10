@@ -61,6 +61,45 @@ index 6fcd577..1eb78df 100644
  bad_ip_list(const char *str)
  {
  	char s[64];
+diff --git a/dhcpd/bpf.c b/dhcpd/bpf.c
+index 62db212..460b333 100644
+--- a/dhcpd/bpf.c
++++ b/dhcpd/bpf.c
+@@ -25,6 +25,7 @@
+ #include <unistd.h>
+ 
+ #include "dhcpd.h"
++#include "interface.h"
+ 
+ /*
+  * Unprivileged functions emulating the network stack for BPF.
+@@ -204,6 +205,7 @@ int
+ ether_output(struct reply *r, struct request *req)
+ {
+ 	const size_t len = sizeof req->l2->ether_dhost;
++	struct network_interface *ni = req->rcvd_on_bpf;
+ 
+ 	if (r->pkt.l3.ip_dst.s_addr == INADDR_BROADCAST)
+ 		memset(&r->pkt.l2.ether_dhost, 0xFF, len);
+@@ -211,11 +213,14 @@ ether_output(struct reply *r, struct request *req)
+ 		memcpy(&r->pkt.l2.ether_dhost, r->pkt.bootp.chaddr.buf, len);
+ 
+ 	/*
+-	 * OpenBSD route(4) RTM_IFANNOUNCE messages don't tell
+-	 * link layer addresses about interfaces that came later
+-	 * in the process.  Therefore just copy where it came from.
++	 * However, while all the sane systems have an ioctl to
++	 * have the kernel fill in your source MAC address, Linux
++	 * has decided not to implement it.  Furthermore, glibc
++	 * will not give out MAC addresses for interfaces with IP
++	 * addresses already assigned.  When we can, we use the
++	 * interface's MAC snooped off of Netlink; otherwise zeroes.
+ 	 */
+-	memcpy(&r->pkt.l2.ether_shost, req->l2->ether_dhost, len);
++	memcpy(&r->pkt.l2.ether_shost, ni->mac, len);
+ 	r->pkt.l2.ether_type = htons(ETHERTYPE_IP);
+ 
+ 	return sizeof r->pkt.l2;
 diff --git a/dhcpd/bpf.h b/dhcpd/bpf.h
 index 2f694a1..71c238b 100644
 --- a/dhcpd/bpf.h
@@ -106,7 +145,7 @@ index 96f8b38..42d0a20 100644
  	}
  	else
 diff --git a/dhcpd/dhcpd.c b/dhcpd/dhcpd.c
-index 7507d01..3cf1131 100644
+index 3b8ec91..7ed8ecc 100644
 --- a/dhcpd/dhcpd.c
 +++ b/dhcpd/dhcpd.c
 @@ -24,9 +24,9 @@
@@ -161,7 +200,7 @@ index b577528..177031e 100644
  #include "dhcpd.h"
  #include "debug.h"
 diff --git a/dhcpd/interface.c b/dhcpd/interface.c
-index ba9e769..e3c5af5 100644
+index e6821ee..ad58f58 100644
 --- a/dhcpd/interface.c
 +++ b/dhcpd/interface.c
 @@ -22,8 +22,8 @@
@@ -175,6 +214,42 @@ index ba9e769..e3c5af5 100644
  #include <unistd.h>
  
  #include "dhcpd.h"
+@@ -224,10 +224,10 @@ interface_arrived(unsigned idx, const char *name)
+ 		RB_REMOVE(network_interface_tree, &ifs_want, ni);
+ 
+ 	/* Sanity check.  We need to know about everything. */
+-	else if (interface_by_name(&ifs_used, name) ||
+-	    interface_by_name(&ifs_nuse, name)) {
+-		log_warnx("interface %s arrived twice", name);
+-		fatalx("interface database corrupt");
++	else if ((ni = interface_by_name(&ifs_used, name)) ||
++	    (ni = interface_by_name(&ifs_nuse, name))) {
++		log_warnx("interface %s arrived twice, skipping", name);
++		return (ni);
+ 	}
+ 
+ 	/* Prepare it to be used soon. */
+diff --git a/dhcpd/interface.h b/dhcpd/interface.h
+index 040ff3a..23d6997 100644
+--- a/dhcpd/interface.h
++++ b/dhcpd/interface.h
+@@ -15,6 +15,8 @@
+  */
+ 
+ #pragma once
++#include <event.h>
++
+ /*
+  * Network interfaces represent potential BPF endpoints where local packets
+  * arrive.  The user tells us which ones does she want to listen on and as
+@@ -34,6 +36,7 @@ struct network_interface {
+ 	struct shared_network		*shared;
+ 	unsigned	 index;
+ 	char		 name[IF_NAMESIZE];
++	u_int8_t	 mac[ETHER_ADDR_LEN];
+ 	int		 oper_state; /* RFC 2863 */
+ 
+ 	/* BPF */
 diff --git a/dhcpd/lease.c b/dhcpd/lease.c
 index b98a539..d849751 100644
 --- a/dhcpd/lease.c
@@ -191,7 +266,7 @@ index b98a539..d849751 100644
  
  #include "dhcpd.h"
 diff --git a/dhcpd/privsep.c b/dhcpd/privsep.c
-index da51d45..a383e9e 100644
+index 448e819..9c78ab6 100644
 --- a/dhcpd/privsep.c
 +++ b/dhcpd/privsep.c
 @@ -26,7 +26,7 @@
