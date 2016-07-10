@@ -67,6 +67,13 @@ udp_socket_open(struct in_addr *a)
 	return (-1);
 }
 
+static int
+valid_interface_name(char *s, ssize_t len)
+{
+	/* Only accept short NUL-terminated strings. */
+	return len > 0 && len <= IF_NAMESIZE && s[len - 1] == '\0';
+}
+
 static void
 privileged_reload(void)
 {
@@ -154,13 +161,11 @@ privileged_main(void)
 			fatal("priv: imsg_read(3)");
 
 		while ((n = imsg_get(&imsgbuf, &imsg)) > 0) {
-			size_t pld_len = imsg.hdr.len - IMSG_HEADER_SIZE;
+			ssize_t pld_len = imsg.hdr.len - IMSG_HEADER_SIZE;
 
 			switch (imsg.hdr.type) {
 			case IMSG_BPF:
-				/* Only accept short NUL-terminated strings. */
-				if (pld_len > IF_NAMESIZE ||
-				    ((char *)imsg.data)[pld_len - 1] != '\0')
+				if (!valid_interface_name(imsg.data, pld_len))
 					goto fail;
 
 				if ((fd = bpf_socket_open(imsg.data)) == -1)
@@ -235,11 +240,12 @@ unprivileged_dispatch(int sock, short ev, void *arg)
 	}
 
 	while ((n = imsg_get(&imsgbuf, &imsg)) > 0) {
-		size_t pld_len = imsg.hdr.len - IMSG_HEADER_SIZE;
+		ssize_t pld_len = imsg.hdr.len - IMSG_HEADER_SIZE;
 
 		switch (imsg.hdr.type) {
 		case IMSG_BPF:
-			if (imsg.fd == -1 || pld_len != IF_NAMESIZE)
+			if (imsg.fd == -1 ||
+			    !valid_interface_name(imsg.data, pld_len))
 				goto fail;
 
 			interface_assign_bpf(imsg.data, imsg.fd);
