@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <event.h>
 #include <fcntl.h>
+#include <ifaddrs.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>

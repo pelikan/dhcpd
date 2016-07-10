@@ -16,12 +16,8 @@
 
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#include <sys/param.h>
 #include <arpa/inet.h>
-#include <net/if.h>
-#include <net/route.h>
 #include <event.h>
-#include <ifaddrs.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
