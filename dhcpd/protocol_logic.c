@@ -135,6 +135,7 @@ static char *
 preview(struct request *req)
 {
 	static char x[64];
+	char terminated[64];
 	int len;
 	u_int8_t *p;
 
@@ -142,10 +143,13 @@ preview(struct request *req)
 	    (p = req->dhcp_opts[DHCP_OPT_VENDOR_CLASSID]) == NULL)
 		return "";
 
+	/* The string may not be NUL-terminated, but strnvis needs it to. */
 	len = MIN(sizeof x - 5U, p[0] + 1U);
+	memcpy(terminated, p + 1, len);
+	terminated[len] = '\0';
 	x[0] = ' ';
 	x[1] = '(';
-	strnvis(x + 2, (char *)p + 1, len, VIS_SAFE);
+	strnvis(x + 2, terminated, len, VIS_SAFE);
 	strlcat(x, ")", sizeof x);
 
 	return x;
