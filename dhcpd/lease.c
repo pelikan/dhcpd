@@ -159,7 +159,8 @@ void
 lease_free(struct lease *l)
 {
 	RB_REMOVE(lease_expiry_tree, &leases_by_expiration, l);
-	RB_REMOVE(lease_mac_tree, &l->subnet->shared->leases, l);
+	if (l->state != DECLINED)
+		RB_REMOVE(lease_mac_tree, &l->subnet->shared->leases, l);
 
 	if (l->host)
 		l->host->lease = NULL;
@@ -301,7 +302,9 @@ lease_decline(struct request *req, struct lease *l)
 
 		RB_REMOVE(lease_mac_tree, &l->subnet->shared->leases, l);
 		memset(&l->mac, 0, sizeof l->mac);
-		RB_INSERT(lease_mac_tree, &l->subnet->shared->leases, l);
+
+		// Do not re-insert back into mac_tree because it can't
+		// handle multiple entries with the same (all-zero) key.
 	}
 
 	return lease_new_dynamic(req, DEFAULT_LEASE_TIME);
