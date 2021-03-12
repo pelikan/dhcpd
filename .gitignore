@@ -30,3 +30,6 @@ dhcpd/test/fuzz_bootp_input
 *.gcda
 *.gcno
 *.gcov
+
+# Dependencies
+*.d
