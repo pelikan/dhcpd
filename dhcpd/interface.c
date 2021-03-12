@@ -818,9 +818,12 @@ bpf_address(struct request *req)
 	}
 
 	if (tree == &ifa_used) {
+		struct ether_addr src;
+		memcpy(&src, &req->l2->ether_shost, ETHER_ADDR_LEN);
+
 		++stats[STATS_IP_NO_ADDRESS];
 		log_warnx("dropping packet from %s to %s on an IPv4-less "
-		    "interface %s", ether_ntoa(&req->bootp->chaddr.ether),
+		    "interface %s", ether_ntoa(&src),
 		    inet_ntoa(fake.ipv4), ni->name);
 		return (NULL);
 	}
