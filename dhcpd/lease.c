@@ -260,7 +260,7 @@ leases_dump(struct ctl_lease **bufp, ssize_t *lenp)
 		    sizeof ctll->last_hostname);
 		memcpy(ctll->last_vendor_classid, l->last_vendor_classid,
 		    sizeof ctll->last_vendor_classid);
-		memcpy(ctll->shared, l->subnet->shared->name,
+		strlcpy(ctll->shared, l->subnet->shared->name,
 		    sizeof ctll->shared);
 		ctll->state = l->state;
 		ctll->allocated = l->allocated;
