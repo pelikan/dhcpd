@@ -256,6 +256,19 @@ dhcprequest_verify_ciaddr(struct request *req, struct lease *l,
 		log_info("%s: %s, chaddr %s asked for %s, we only have %s",
 		    __func__, state, ether_ntoa(&req->bootp->chaddr.ether),
 		    inet_ntoa(req->bootp->ciaddr), want);
+
+		/*
+		 * RFC 1542 section 5.4 says non-zero ciaddr means trusting the
+		 * field and sending any responses there, bypassing any relays.
+		 * In this case we need to send a DHCPNAK which needs broadcast
+		 * or delivered directly to chaddr, in order to be heard by the
+		 * client.  So clobber the address so that downstream code puts
+		 * either broadcast or giaddr into the destination field.
+		 *
+		 * Furthermore, RFC 2131, table 3 says that DHCPNAKs will have
+		 * ciaddr+yiaddr set to 0, so this is the correct thing to do.
+		 */
+		req->bootp->ciaddr.s_addr = INADDR_ANY;
 		return (-1);
 	}
 	return (0);
