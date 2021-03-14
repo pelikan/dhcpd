@@ -164,7 +164,9 @@ dhcp_input(u_int8_t *data, size_t len, struct request *req)
 			log_info("%s: packet from %s not for me, but %s",
 			    __func__, ether_ntoa(&req->bootp->chaddr.ether),
 			    inet_ntoa(hers));
-			return (-1);
+
+			/* Nothing else to do; packet successfully handled! */
+			return (0);
 		}
 	}
 
