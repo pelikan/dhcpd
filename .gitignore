@@ -33,3 +33,11 @@ dhcpd/test/fuzz_bootp_input
 
 # Dependencies
 *.d
+
+# diff(1) artifacts
+*.orig
+*.rej
+
+# Potential user data leaks
+*.core
+core
