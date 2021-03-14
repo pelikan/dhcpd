@@ -573,11 +573,14 @@ ipv4_addr_arrived(struct network_interface *ni, u_int32_t ipv4, u_int8_t plen)
 	    na->ipv4.s_addr == ipv4) ||
 	    ((na = RB_NFIND(ipv4_address_tree, &ifa_nuse, &fake)) &&
 	    na->ipv4.s_addr == ipv4) ) {
-		log_warnx("IPv4 address 0x%x/%u arrived twice", ipv4, plen);
-		fatalx("interface database corrupt");
-
-		/* NOTREACHED older GCC doesn't understand _Noreturn */
-		tree = NULL;
+		/*
+		 * Imagine we serve DHCP on an intranet interface, and
+		 * a WAN port has a DHCP client to allow transit. That
+		 * transit IP address will reappear every renew period.
+		 */
+		log_debug("IPv4 address %s/%u arrived again",
+		    inet_ntoa(na->ipv4), plen);
+		return (na);
 	}
 
 	/* This address wasn't wanted. */
