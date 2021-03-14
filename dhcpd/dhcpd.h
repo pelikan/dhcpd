@@ -469,8 +469,8 @@ void	log_debug(const char *, ...);
 void	log_info(const char *, ...);
 void	log_warn(const char *, ...);
 void	log_warnx(const char *, ...);
-void	fatal(const char *);
-void	fatalx(const char *);
+void	fatal(const char *, ...);
+void	fatalx(const char *, ...);
 
 #ifdef EBUG_IO
 #define	log_debug_io(fmt, ...)	log_debug(fmt, __VA_ARGS__)

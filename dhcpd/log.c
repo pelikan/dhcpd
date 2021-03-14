@@ -11,9 +11,9 @@
  * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
  * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER
- * IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
- * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <errno.h>
@@ -45,6 +45,7 @@ static void
 vlog(int pri, const char *fmt, va_list ap)
 {
 	char	*nfmt;
+	int	 saved_errno = errno;
 
 	if (debug) {
 		/* best effort in out of mem situations */
@@ -58,6 +59,8 @@ vlog(int pri, const char *fmt, va_list ap)
 		fflush(stderr);
 	} else
 		vsyslog(pri, fmt, ap);
+
+	errno = saved_errno;
 }
 
 static void
@@ -70,29 +73,32 @@ logit(int pri, const char *fmt, ...)
 	va_end(ap);
 }
 
-
 void
 log_warn(const char *emsg, ...)
 {
-	char	*nfmt;
-	va_list	 ap;
+	char		*nfmt;
+	va_list		 ap;
+	int		 saved_errno = errno;
 
 	/* best effort to even work in out of memory situations */
 	if (emsg == NULL)
-		logit(LOG_CRIT, "%s", strerror(errno));
+		logit(LOG_ERR, "%s", strerror(saved_errno));
 	else {
 		va_start(ap, emsg);
 
-		if (asprintf(&nfmt, "%s: %s", emsg, strerror(errno)) == -1) {
+		if (asprintf(&nfmt, "%s: %s", emsg,
+		    strerror(saved_errno)) == -1) {
 			/* we tried it... */
-			vlog(LOG_CRIT, emsg, ap);
-			logit(LOG_CRIT, "%s", strerror(errno));
+			vlog(LOG_ERR, emsg, ap);
+			logit(LOG_ERR, "%s", strerror(saved_errno));
 		} else {
-			vlog(LOG_CRIT, nfmt, ap);
+			vlog(LOG_ERR, nfmt, ap);
 			free(nfmt);
 		}
 		va_end(ap);
 	}
+
+	errno = saved_errno;
 }
 
 void
@@ -101,7 +107,7 @@ log_warnx(const char *emsg, ...)
 	va_list	 ap;
 
 	va_start(ap, emsg);
-	vlog(LOG_CRIT, emsg, ap);
+	vlog(LOG_ERR, emsg, ap);
 	va_end(ap);
 }
 
@@ -127,24 +133,43 @@ log_debug(const char *emsg, ...)
 	}
 }
 
-void
-fatal(const char *emsg)
+static void
+vfatalc(int code, const char *emsg, va_list ap)
 {
-	if (emsg == NULL)
-		logit(LOG_CRIT, "fatal: %s", strerror(errno));
-	else
-		if (errno)
-			logit(LOG_CRIT, "fatal: %s: %s",
-			    emsg, strerror(errno));
-		else
-			logit(LOG_CRIT, "fatal: %s", emsg);
+	static char	s[BUFSIZ];
+	const char	*sep;
 
+	if (emsg != NULL) {
+		(void)vsnprintf(s, sizeof(s), emsg, ap);
+		sep = ": ";
+	} else {
+		s[0] = '\0';
+		sep = "";
+	}
+	if (code)
+		logit(LOG_CRIT, "fatal: %s%s%s", s, sep, strerror(code));
+	else
+		logit(LOG_CRIT, "fatal: %s", s);
+}
+
+void
+fatal(const char *emsg, ...)
+{
+	va_list	ap;
+
+	va_start(ap, emsg);
+	vfatalc(errno, emsg, ap);
+	va_end(ap);
 	exit(1);
 }
 
 void
-fatalx(const char *emsg)
+fatalx(const char *emsg, ...)
 {
-	errno = 0;
-	fatal(emsg);
+	va_list	ap;
+
+	va_start(ap, emsg);
+	vfatalc(0, emsg, ap);
+	va_end(ap);
+	exit(1);
 }
