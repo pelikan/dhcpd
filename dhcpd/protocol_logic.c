@@ -243,7 +243,25 @@ dhcprequest_unknown_lease(struct request *req)
 	return lease_previous_dynamic(req, requested);
 }
 
-/* RFC 2131, 4.3.2 wants the server to trust ciaddr. */
+/* RFC 2131, 4.3.2, REBINDING: we SHOULD check ciaddr for correctness */
+static int
+dhcprequest_verify_ciaddr(struct request *req, struct lease *l,
+    const char *state)
+{
+	/* Our database must have chaddr and ciaddr paired. */
+	if (req->bootp->ciaddr.s_addr != l->address.s_addr) {
+		char want[INET_ADDRSTRLEN];
+		strlcpy(want, inet_ntoa(l->address), sizeof want);
+
+		log_info("%s: %s, chaddr %s asked for %s, we only have %s",
+		    __func__, state, ether_ntoa(&req->bootp->chaddr.ether),
+		    inet_ntoa(req->bootp->ciaddr), want);
+		return (-1);
+	}
+	return (0);
+}
+
+/* RFC 2131, 4.3.2, RENEWING wants the server to trust ciaddr. */
 static int
 dhcprequest_renewing_checks(struct request *req, struct lease *l)
 {
@@ -258,20 +276,7 @@ dhcprequest_renewing_checks(struct request *req, struct lease *l)
 		    __func__, l3src, inet_ntoa(req->bootp->ciaddr));
 	}
 
-	/*
-	 * Can't allow renewing someone else's lease.
-	 * Our database must have chaddr and ciaddr paired.
-	 */
-	if (req->bootp->ciaddr.s_addr != l->address.s_addr) {
-		char want[INET_ADDRSTRLEN];
-		strlcpy(want, inet_ntoa(l->address), sizeof want);
-
-		log_info("%s: RENEWING of %s asked for %s, we only have %s",
-		    __func__, ether_ntoa(&req->bootp->chaddr.ether),
-		    inet_ntoa(req->bootp->ciaddr), want);
-		return (-1);
-	}
-	return (0);
+	return dhcprequest_verify_ciaddr(req, l, "RENEWING");
 }
 
 int
@@ -314,6 +319,8 @@ dhcprequest(struct request *req)
 				state = "REBINDING";
 				++stats[STATS_REQUESTS_REBINDING];
 				if (req->bootp->ciaddr.s_addr == INADDR_ANY)
+					goto invalid;
+				if (dhcprequest_verify_ciaddr(req, l, state))
 					goto invalid;
 				break;
 
