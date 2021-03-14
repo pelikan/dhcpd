@@ -243,6 +243,37 @@ dhcprequest_unknown_lease(struct request *req)
 	return lease_previous_dynamic(req, requested);
 }
 
+/* RFC 2131, 4.3.2 wants the server to trust ciaddr. */
+static int
+dhcprequest_renewing_checks(struct request *req, struct lease *l)
+{
+	/* dnsmasq unicasts renew for wifi and kernel sends it over wired eth */
+	if (req->l3->ip_src.s_addr != req->bootp->ciaddr.s_addr) {
+		char l3src[INET_ADDRSTRLEN];
+		strlcpy(l3src, inet_ntoa(req->l3->ip_src),
+		    sizeof l3src);
+
+		log_info("%s: IPv4 source %s != BOOTP ciaddr %s: "
+		    "NAT or multiple connected interfaces?",
+		    __func__, l3src, inet_ntoa(req->bootp->ciaddr));
+	}
+
+	/*
+	 * Can't allow renewing someone else's lease.
+	 * Our database must have chaddr and ciaddr paired.
+	 */
+	if (req->bootp->ciaddr.s_addr != l->address.s_addr) {
+		char want[INET_ADDRSTRLEN];
+		strlcpy(want, inet_ntoa(l->address), sizeof want);
+
+		log_info("%s: RENEWING of %s asked for %s, we only have %s",
+		    __func__, ether_ntoa(&req->bootp->chaddr.ether),
+		    inet_ntoa(req->bootp->ciaddr), want);
+		return (-1);
+	}
+	return (0);
+}
+
 int
 dhcprequest(struct request *req)
 {
@@ -298,20 +329,11 @@ dhcprequest(struct request *req)
 		/*
 		 * RENEWING is unicast without using relays, most common case.
 		 */
-		else if (req->l3->ip_src.s_addr != req->bootp->ciaddr.s_addr) {
-			log_info("%s: IPv4 source differs from ciaddr %s: NAT?",
-			    __func__, inet_ntoa(req->bootp->ciaddr));
-			return (-1);
-		}
-		/* Can't allow renewing someone else's lease. */
-		else if (req->bootp->ciaddr.s_addr != l->address.s_addr) {
-			log_info("%s: RENEWING of %s came from %s",
-			    __func__, ether_ntoa(&req->bootp->chaddr.ether),
-			    inet_ntoa(req->bootp->ciaddr));
-			return (-1);
-		}
-		else
+		else {
+			if (dhcprequest_renewing_checks(req, l))
+				return (-1);
 			++stats[STATS_REQUESTS_RENEWING];
+		}
 		log_info("%s: DHCPREQUEST %s: %s%s", req->shared->name,
 		    state, ether_ntoa(&req->bootp->chaddr.ether), preview(req));
 	}
