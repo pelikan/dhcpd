@@ -156,7 +156,7 @@ privileged_main(void)
 		}
 
 		if (pfd.revents & (POLLHUP | POLLERR))
-			fatalx("priv: pfd.revents with HUP or ERR");
+			fatalx("priv: pfd.revents 0x%x", pfd.revents);
 		if ((n = imsg_read(&imsgbuf)) == -1)
 			fatal("priv: imsg_read(3)");
 

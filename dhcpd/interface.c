@@ -216,17 +216,17 @@ interface_arrived(unsigned idx, const char *name)
 	struct network_interface_tree *tree;
 
 	/* Does the user want it immediately? */
-	if ((ni = interface_by_name(&ifs_want, name)))
+	if ((ni = interface_by_name(&ifs_want, name))) {
 		RB_REMOVE(network_interface_tree, &ifs_want, ni);
-
-	/* Sanity check.  We need to know about everything. */
-	else if (interface_by_name(&ifs_used, name) ||
-	    interface_by_name(&ifs_nuse, name)) {
-		log_warnx("interface %s arrived twice", name);
-		fatalx("interface database corrupt");
+	} else if ((ni = interface_by_name(&ifs_used, name))) {
+		log_debug("interface %s arrived again (used)", name);
+		return (ni);
+	} else if ((ni = interface_by_name(&ifs_nuse, name))) {
+		log_debug("interface %s arrived again (unused)", name);
+		return (ni);
 	}
 
-	/* Prepare it to be used soon. */
+	/* Interface is wanted and new - prepare it to be used soon. */
 	if (ni) {
 		if (unprivileged_ask_for_bpf(name)) {
 			log_warn("%s: can't ask priv child for bpf", __func__);
@@ -261,17 +261,14 @@ interface_departure_sanity_checks(struct network_interface *ni)
 	/* There aren't supposed to be any addresses left. */
 	RB_FOREACH(na, ipv4_address_tree, &ifa_used)
 		if (na->ni == ni) {
-			log_warnx("departing interface %s had running address "
+			fatalx("departing interface %s had running address "
 			    "%s/%u in use", name, inet_ntoa(na->ipv4),
 			    na->prefixlen);
-			fatalx("interface database corrupt");
 		}
 	RB_FOREACH(na, ipv4_address_tree, &ifa_nuse)
 		if (na->ni == ni) {
-			log_warnx("departing interface %s had unused address %s"
-			    "/%u left", name, inet_ntoa(na->ipv4),
-			    na->prefixlen);
-			fatalx("interface database corrupt");
+			fatalx("departing interface %s had unused address %s/%u"
+			    " left", name, inet_ntoa(na->ipv4), na->prefixlen);
 		}
 }
 
@@ -635,8 +632,7 @@ ipv4_addr_departed(u_int32_t ipv4, u_int8_t plen)
 
 	/* Sanity check.  We need to know about everything. */
 	if (na == NULL) {
-		log_warnx("IPv4 address %#x/%u departed twice", ipv4, plen);
-		fatalx("interface database corrupt");
+		fatalx("IPv4 address %#x/%u departed twice", ipv4, plen);
 	}
 
 	log_debug("IPv4 address %s departed", inet_ntoa(na->ipv4));

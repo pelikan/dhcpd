@@ -424,7 +424,8 @@ subnet_free(struct subnet *s)
 	/* Subnets go from their shared_networks' trees explicitly. */
 	if (--s->refcnt == 0) {
 		if (s->network.s_addr != INADDR_ANY || s->prefixlen)
-			fatalx("freeing subnet that's still there!");
+			fatalx("freeing subnet %s/%u that's still there!",
+			    inet_ntoa(s->network), s->prefixlen);
 
 		group_free(s->group);
 		shared_network_free(s->shared);

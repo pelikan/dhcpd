@@ -63,7 +63,8 @@ ether_input(void *data, size_t len, struct request *req)
 	req->l2 = data;
 
 	if (req->l2->ether_type != htons(ETHERTYPE_IP))
-		fatalx("non-IPv4 packet happened: BPF doesn't work.");
+		fatalx("non-IPv4 ethertype 0x%x (len %zu): BPF doesn't work.",
+		    req->l2->ether_type, len);
 
 	if (len > MTU || len <= sizeof *req->l2) {
 		log_warnx("%s: rcvd packet of length %zu", __func__, len);
@@ -96,7 +97,8 @@ ipv4_input(void *data, size_t len, struct request *req)
 	}
 
 	if (req->l3->ip_p != IPPROTO_UDP)
-		fatalx("wrong IP protocol: BPF doesn't work.");
+		fatalx("non-UDP protocol 0x%x (len %zu): BPF doesn't work.",
+		    req->l3->ip_p, len);
 
 	if (wrapsum(checksum(data, hdrlen, 0)) != 0) {
 		log_warnx("%s: bad checksum", __func__);
@@ -127,7 +129,8 @@ udp_input(void *data, size_t len, struct request *req)
 	}
 
 	if (req->l4->uh_dport != htons(BOOTP_SERVER_PORT))
-		fatalx("wrong UDP dport: BPF doesn't work.");
+		fatalx("wrong UDP dport %u (want %u): BPF doesn't work.",
+		    ntohs(req->l4->uh_dport), BOOTP_SERVER_PORT);
 
 	if ((origsum = req->l4->uh_sum) != 0) {
 		req->l4->uh_sum = 0;
@@ -171,7 +174,7 @@ ipv4_output(struct reply *reply, struct request *req)
 	u_int32_t sum;
 
 	if (reply->off <= 0)
-		fatalx("bad reply offset");
+		fatalx("ipv4_output: bad reply offset %d", reply->off);
 
 	len = sizeof reply->pkt.bootp + reply->off;
 

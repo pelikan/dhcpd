@@ -219,11 +219,12 @@ range_free(struct subnet *s, struct in_addr a)
 		i = (ntohl(a.s_addr) - ntohl(r->lo.s_addr));
 
 		if (ntohl(a.s_addr) > ntohl(r->hi.s_addr))
-			fatalx("range_free: called with addr too large");
+			fatalx("range_free: called with addr %s too large",
+			    inet_ntoa(a));
 
 		RANGE_FREE(r, i);
 		return;
 	}
-	log_warnx("address %s not found in any range", inet_ntoa(a));
+	log_debug("range_free: address %s not in any range", inet_ntoa(a));
 }
 

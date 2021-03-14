@@ -228,21 +228,6 @@ index 48a9acc..abe6f92 100644
  #include <unistd.h>
  
  #include "dhcpd.h"
-@@ -220,10 +220,10 @@ interface_arrived(unsigned idx, const char *name)
- 		RB_REMOVE(network_interface_tree, &ifs_want, ni);
- 
- 	/* Sanity check.  We need to know about everything. */
--	else if (interface_by_name(&ifs_used, name) ||
--	    interface_by_name(&ifs_nuse, name)) {
--		log_warnx("interface %s arrived twice", name);
--		fatalx("interface database corrupt");
-+	else if ((ni = interface_by_name(&ifs_used, name)) ||
-+	    (ni = interface_by_name(&ifs_nuse, name))) {
-+		log_warnx("interface %s arrived twice, skipping", name);
-+		return (ni);
- 	}
- 
- 	/* Prepare it to be used soon. */
 diff --git a/dhcpd/interface.h b/dhcpd/interface.h
 index 040ff3a..23d6997 100644
 --- a/dhcpd/interface.h
