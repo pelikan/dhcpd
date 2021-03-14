@@ -172,8 +172,13 @@ bpf_input(struct network_interface *ni, u_int8_t *data, size_t len)
 	data += consumed;
 	len -= consumed;
 
-	if ((consumed = bootp_input(data, len, &req)) < 0)
-		log_info("BPF socket processing went wrong");
+	if ((consumed = bootp_input(data, len, &req)) < 0) {
+		struct ether_addr src;
+		memcpy(&src, &req.l2->ether_shost, ETHER_ADDR_LEN);
+
+		log_info("BPF socket processing (from %s, %s) went wrong",
+		    ether_ntoa(&src), inet_ntoa(req.l3->ip_src));
+	}
 }
 
 void

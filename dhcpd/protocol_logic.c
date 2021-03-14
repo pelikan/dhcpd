@@ -134,22 +134,23 @@ dhcpnak(struct request *req, const char *text)
 static char *
 preview(struct request *req)
 {
-	static char x[64];
-	char terminated[64];
+	static char x[128];
+	char terminated[128];
 	int len;
 	u_int8_t *p;
+	const int max_strlen = sizeof x - 5U;
 
 	if ((p = req->dhcp_opts[DHCP_OPT_HOSTNAME]) == NULL &&
 	    (p = req->dhcp_opts[DHCP_OPT_VENDOR_CLASSID]) == NULL)
 		return "";
 
-	/* The string may not be NUL-terminated, but strnvis needs it to. */
-	len = MIN(sizeof x - 5U, p[0]);
+	/* The string may not be NUL-terminated, but strnvis(3) needs it to. */
+	len = MIN(max_strlen, p[0]);
 	memcpy(terminated, p + 1, len);
 	terminated[len] = '\0';
 	x[0] = ' ';
 	x[1] = '(';
-	strnvis(x + 2, terminated, len, VIS_SAFE);
+	strnvis(x + 2, terminated, max_strlen, VIS_SAFE);
 	strlcat(x, ")", sizeof x);
 
 	return x;
@@ -334,8 +335,8 @@ dhcprequest(struct request *req)
 		}
 
 		if (l->state != OFFERED)
-			log_debug("assumed SELECTING with lease in state %d",
-			    l->state);
+			log_debug("%s assumed SELECTING with lease in state %d",
+			    ether_ntoa(&req->bootp->chaddr.ether), l->state);
 	}
 
 	return dhcpack(req, l, flags);

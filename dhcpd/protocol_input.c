@@ -161,7 +161,9 @@ dhcp_input(u_int8_t *data, size_t len, struct request *req)
 		mine = ipv4_addr(req->rcvd_on);
 		if (mine.s_addr != hers.s_addr) {
 			++stats[STATS_DHCP_NOT_FOR_US];
-			log_warnx("packet not for me, but %s", inet_ntoa(hers));
+			log_info("%s: packet from %s not for me, but %s",
+			    __func__, ether_ntoa(&req->bootp->chaddr.ether),
+			    inet_ntoa(hers));
 			return (-1);
 		}
 	}
