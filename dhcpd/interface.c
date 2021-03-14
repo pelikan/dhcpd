@@ -500,8 +500,10 @@ udp_event(int fd, short ev, void *arg)
 	log_debug_io("UDP read %zd bytes on %s (%s)", n, inet_ntoa(na->ipv4),
 	    na->shared->name);
 
-	if (bootp_input(buf, n, &req) < 0)
-		log_info("UDP socket procesing went wrong");
+	if (bootp_input(buf, n, &req) < 0) {
+		log_info("UDP socket procesing (from %s) went wrong",
+		    inet_ntoa(from.sin_addr));
+	}
 }
 
 void
@@ -1121,7 +1123,7 @@ bpf_send(struct network_interface *ni, struct request *req, struct reply *reply)
 
 	n = write(ni->fd, reply, pktlen);
 	if (n == -1) {
-		log_warn("write(2) BPF");
+		log_warn("write(2) BPF %s", inet_ntoa(reply->pkt.l3.ip_dst));
 		return (-1);
 	}
 	log_debug_io("BPF sent %zd bytes over %s", n, ni->name);
@@ -1146,7 +1148,7 @@ udp_send(struct network_address *na, struct request *req, struct reply *reply)
 	n = sendto(na->fd, &reply->pkt.bootp, len, 0,
 	    (struct sockaddr *) &from, fromlen);
 	if (n == -1) {
-		log_warn("sendto(2) UDP");
+		log_warn("sendto(2) UDP %s", inet_ntoa(from.sin_addr));
 		return (-1);
 	}
 	log_debug_io("UDP sent %zd bytes to %s", n, inet_ntoa(from.sin_addr));
