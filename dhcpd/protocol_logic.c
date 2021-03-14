@@ -144,7 +144,7 @@ preview(struct request *req)
 		return "";
 
 	/* The string may not be NUL-terminated, but strnvis needs it to. */
-	len = MIN(sizeof x - 5U, p[0] + 1U);
+	len = MIN(sizeof x - 5U, p[0]);
 	memcpy(terminated, p + 1, len);
 	terminated[len] = '\0';
 	x[0] = ' ';
