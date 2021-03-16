@@ -673,10 +673,12 @@ print_lease(struct ctl_lease *l, struct timeval *now)
 	    l->shared, lease_state(l->state), exptm);
 
 	if (l->last_hostname[0]) {
+		l->last_hostname[sizeof l->last_hostname -1] = '\0';
 		strnvis(buf, l->last_hostname, sizeof buf, VIS_SAFE);
 		printf(" %s", buf);
 	}
 	if (l->last_vendor_classid[0]) {
+		l->last_vendor_classid[sizeof l->last_vendor_classid -1] = '\0';
 		strnvis(buf, l->last_vendor_classid, sizeof buf, VIS_SAFE);
 		printf(" %s", buf);
 	}

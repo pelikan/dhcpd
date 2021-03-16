@@ -225,13 +225,13 @@ lease_whoisit(struct lease *l, struct request *req)
 	u_int8_t len, *p;
 
 	if ((p = req->dhcp_opts[DHCP_OPT_HOSTNAME])) {
-		len = MIN(p[0], sizeof l->last_hostname);
+		len = MIN(p[0], sizeof l->last_hostname - 1);
 		memcpy(l->last_hostname, p + 1, len);
 		memset(l->last_hostname + len, 0,
 		    sizeof l->last_hostname - len);
 	}
 	if ((p = req->dhcp_opts[DHCP_OPT_VENDOR_CLASSID])) {
-		len = MIN(p[0], sizeof l->last_vendor_classid);
+		len = MIN(p[0], sizeof l->last_vendor_classid - 1);
 		memcpy(l->last_vendor_classid, p + 1, len);
 		memset(l->last_vendor_classid + len, 0,
 		    sizeof l->last_vendor_classid - len);
