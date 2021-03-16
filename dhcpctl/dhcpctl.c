@@ -131,8 +131,6 @@ get_boring_response(void)
 		err(1, "imsg_get");
 }
 
-u_int8_t mac[] = { 0x0, 0x50, 0x56, 0x33, 0x33, 0x5 };
-
 static void
 do_interface(struct parse_result *res, int op)
 {
@@ -537,7 +535,8 @@ do_subnet_show(struct parse_result *res)
 			count /= sizeof *hbuf;
 
 			for (size_t i = 0; i < count; ++i)
-				printf("%s\t%s\n", inet_ntoa(hbuf[i].ip), ether_ntoa(&hbuf[i].mac));
+				printf("%s\t%s\n", inet_ntoa(hbuf[i].ip),
+				    ether_ntoa(&hbuf[i].mac));
 			break;
 		default:
 			errx(1, DHCPD_WRONG_IMSG, imsg.hdr.type, imsg.hdr.len);
@@ -921,8 +920,7 @@ do_stats(void)
 				if (buf[i] == 0)
 					continue;
 
-				desc = (i >= 256) ?
-				    "received" : "requested";
+				desc = (i >= 256) ? "received" : "requested";
 				printf("options.unknown.%s.%zu=%" PRIu64 "\n",
 				    desc, i % 256, buf[i]);
 			}
