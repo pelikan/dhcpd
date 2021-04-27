@@ -7,7 +7,7 @@ FUZZFLAGS = $(CFLAGS) $(LDFLAGS) -lstdc++ -fsanitize-coverage=edge -fsanitize=ad
 OBJS = bpf.o control.o dhcpd.o group.o interface.o lease.o log.o memory.o
 OBJS += privsep.o range.o unsatisfied.o Linux.o
 OBJS += protocol_input.o protocol_logic.o protocol_output.o protocol_quirks.o
-OBJS += ../compat/imsg.o ../compat/imsg-buffer.o
+OBJS += ../compat/imsg.o ../compat/imsg-buffer.o ../compat/pidfile.o
 
 dhcpd: $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $+

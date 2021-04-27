@@ -27,6 +27,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <util.h>
 
 #include "dhcpd.h"
 
@@ -189,6 +190,9 @@ main(int argc, char *argv[])
 
 	if (!debug && daemon(1, 0) != 0)
 		fatal("daemon(3)");
+
+	if (pidfile(NULL) == -1)
+		fatal("pidfile(3)");
 
 	drop_privileges(pw);
 	set_defaults();

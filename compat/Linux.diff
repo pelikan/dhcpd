@@ -1,8 +1,336 @@
+-diff --git a/dhcpctl/dhcpctl.c b/dhcpctl/dhcpctl.c
+-index 1d49e99..8dd195a 100644
+---- a/dhcpctl/dhcpctl.c
+-+++ b/dhcpctl/dhcpctl.c
+-@@ -26,11 +26,11 @@
+- #include <inttypes.h>
+- #include <pwd.h>
+- #include <stdio.h>
+--#include <stdlib.h>
+--#include <string.h>
+-+#include <bsd/stdlib.h>
+-+#include <bsd/string.h>
+- #include <time.h>
+- #include <unistd.h>
+--#include <vis.h>
+-+#include <bsd/vis.h>
+- 
+- #include "dhcpd.h"
+- #include "parser.h"
+-@@ -38,7 +38,7 @@
+- #define	DHCPD_SAID		"dhcpd said: %s"
+- #define	DHCPD_WRONG_IMSG	"wrong answer: imsg type %d len %d"
+- 
+--struct sockaddr_un sun = { sizeof PATH_CTLSOCK, AF_UNIX, PATH_CTLSOCK };
+-+struct sockaddr_un sun = { AF_UNIX, PATH_CTLSOCK };
+- struct imsgbuf ibuf;
+- int quit = 0;
+- char error_buffer[ERR_BUF_SIZE * 4];	/* enough for strvis(3) */
+-@@ -1101,7 +1101,6 @@ main(int argc, char *argv[])
+- 			len = strlcpy(sun.sun_path, optarg, sizeof sun.sun_path);
+- 			if (len >= sizeof sun.sun_path)
+- 				errx(1, "path too long: %s", optarg);
+--			sun.sun_len = len;
+- 			break;
+- 		default:
+- 			return usage();
+-diff --git a/dhcpctl/parser.c b/dhcpctl/parser.c
+-index 6fcd577..1eb78df 100644
+---- a/dhcpctl/parser.c
+-+++ b/dhcpctl/parser.c
+-@@ -27,10 +27,10 @@
+- #include <limits.h>
+- #include <netdb.h>
+- #include <stdio.h>
+--#include <stdlib.h>
+--#include <string.h>
+-+#include <bsd/stdlib.h>
+-+#include <bsd/string.h>
+- #include <unistd.h>
+--#include <vis.h>
+-+#include <bsd/vis.h>
+- 
+- #include "parser.h"
+- 
+-@@ -394,7 +394,7 @@ parse_subnet(struct parse_result *tgt, const char *word)
+- 	return inet_aton(ipv4, &tgt->network);
+- }
+- 
+--static __dead void
+-+static void
+- bad_ip_list(const char *str)
+- {
+- 	char s[64];
+-diff --git a/dhcpd/bpf.c b/dhcpd/bpf.c
+-index 62db212..460b333 100644
+---- a/dhcpd/bpf.c
+-+++ b/dhcpd/bpf.c
+-@@ -25,6 +25,7 @@
+- #include <unistd.h>
+- 
+- #include "dhcpd.h"
+-+#include "interface.h"
+- 
+- /*
+-  * Unprivileged functions emulating the network stack for BPF.
+-@@ -204,6 +205,7 @@ int
+- ether_output(struct reply *r, struct request *req)
+- {
+- 	const size_t len = sizeof req->l2->ether_dhost;
+-+	struct network_interface *ni = req->rcvd_on_bpf;
+- 
+- 	if (r->pkt.l3.ip_dst.s_addr == INADDR_BROADCAST)
+- 		memset(&r->pkt.l2.ether_dhost, 0xFF, len);
+-@@ -211,11 +213,14 @@ ether_output(struct reply *r, struct request *req)
+- 		memcpy(&r->pkt.l2.ether_dhost, r->pkt.bootp.chaddr.buf, len);
+- 
+- 	/*
+--	 * OpenBSD route(4) RTM_IFANNOUNCE messages don't tell
+--	 * link layer addresses about interfaces that came later
+--	 * in the process.  Therefore just copy where it came from.
+-+	 * However, while all the sane systems have an ioctl to
+-+	 * have the kernel fill in your source MAC address, Linux
+-+	 * has decided not to implement it.  Furthermore, glibc
+-+	 * will not give out MAC addresses for interfaces with IP
+-+	 * addresses already assigned.  When we can, we use the
+-+	 * interface's MAC snooped off of Netlink; otherwise zeroes.
+- 	 */
+--	memcpy(&r->pkt.l2.ether_shost, req->l2->ether_dhost, len);
+-+	memcpy(&r->pkt.l2.ether_shost, ni->mac, len);
+- 	r->pkt.l2.ether_type = htons(ETHERTYPE_IP);
+- 
+- 	return sizeof r->pkt.l2;
+-diff --git a/dhcpd/bpf.h b/dhcpd/bpf.h
+-index 2f694a1..71c238b 100644
+---- a/dhcpd/bpf.h
+-+++ b/dhcpd/bpf.h
+-@@ -15,7 +15,8 @@
+-  */
+- 
+- #pragma once
+--#include <net/bpf.h>
+-+#include <pcap/bpf.h>
+-+#define bpf_insn sock_filter
+- 
+- /*
+-  * BPF filters can be compiled using libraries such as libpcap.  tcpdump -d
+-diff --git a/dhcpd/control.c b/dhcpd/control.c
+-index 96f8b38..42d0a20 100644
+---- a/dhcpd/control.c
+-+++ b/dhcpd/control.c
+-@@ -27,7 +27,7 @@
+- #include <fcntl.h>
+- #include <imsg.h>
+- #include <stdlib.h>
+--#include <string.h>
+-+#include <bsd/string.h>
+- #include <unistd.h>
+- 
+- #include "dhcpd.h"
+-@@ -335,7 +335,7 @@ control_statistics_unknown_options(struct ctl_conn *ctl)
+- int
+- control_init(char *path, uid_t uid, gid_t gid)
+- {
+--	struct sockaddr_un sun = { sizeof PATH_CTLSOCK, AF_UNIX, PATH_CTLSOCK };
+-+	struct sockaddr_un sun = { AF_UNIX, PATH_CTLSOCK };
+- 	int s;
+- 
+- 	if (path) {
+-@@ -344,7 +344,6 @@ control_init(char *path, uid_t uid, gid_t gid)
+- 			warnx("%s: path too long: %s", __func__, path);
+- 			return (-1);
+- 		}
+--		sun.sun_len = len;
+- 		sun.sun_family = AF_UNIX;
+- 	}
+- 	else
+-diff --git a/dhcpd/dhcpd.c b/dhcpd/dhcpd.c
+-index 3b8ec91..2cd29b0 100644
+---- a/dhcpd/dhcpd.c
+-+++ b/dhcpd/dhcpd.c
+-@@ -14,6 +14,7 @@
+-  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+-  */
+- 
+-+#define _GNU_SOURCE
+- #include <sys/wait.h>
+- #include <assert.h>
+- #include <err.h>
+-@@ -24,12 +25,15 @@
+- #include <stdbool.h>
+- #include <stdio.h>
+- #include <stdlib.h>
+--#include <string.h>
+-+#include <bsd/string.h>
+- #include <time.h>
+--#include <unistd.h>
+-+#include <bsd/unistd.h>
+- 
+- #include "dhcpd.h"
+- 
+-+/* Can't include <grp.h> on Linux, struct group collision. */
+-+int setgroups(size_t, const gid_t *);
+-+
+- enum {
+- 	CONTROL_SOCKET,
+- 	ROUTING_SOCKET,
+-diff --git a/dhcpd/dhcpd.h b/dhcpd/dhcpd.h
+-index 4df764b..796be5d 100644
+---- a/dhcpd/dhcpd.h
+-+++ b/dhcpd/dhcpd.h
+-@@ -16,7 +16,10 @@
+- 
+- #pragma once
+- #include <sys/queue.h>
+-+#include <sys/time.h>
+- #include <sys/tree.h>
+-+#include <net/ethernet.h>
+-+#include <netinet/ether.h>
+- #include <netinet/in.h>
+- #include <netinet/ip.h>
+- #include <netinet/udp.h>
+-@@ -24,7 +27,7 @@
+- 
+- #include "control.h"
+- 
+--#define	UNPRIVILEGED_USER	"_dhcp"
+-+#define	UNPRIVILEGED_USER	"dhcp"
+- #define	CHROOT_PATH	"/var/empty"
+- #define	PATH_CTLSOCK	"/var/run/dhcpd.sock"
+- #define	PATH_DHCPCTL	"/usr/sbin/dhcpctl"
+-diff --git a/dhcpd/group.c b/dhcpd/group.c
+-index b577528..177031e 100644
+---- a/dhcpd/group.c
+-+++ b/dhcpd/group.c
+-@@ -16,8 +16,8 @@
+- 
+- #include <limits.h>
+- #include <stdio.h>
+--#include <stdlib.h>
+--#include <string.h>
+-+#include <bsd/stdlib.h>
+-+#include <bsd/string.h>
+- 
+- #include "dhcpd.h"
+- #include "debug.h"
+-diff --git a/dhcpd/interface.c b/dhcpd/interface.c
+-index 48a9acc..abe6f92 100644
+---- a/dhcpd/interface.c
+-+++ b/dhcpd/interface.c
+-@@ -18,8 +18,8 @@
+- #include <sys/socket.h>
+- #include <arpa/inet.h>
+- #include <event.h>
+--#include <stdlib.h>
+--#include <string.h>
+-+#include <bsd/stdlib.h>
+-+#include <bsd/string.h>
+- #include <unistd.h>
+- 
+- #include "dhcpd.h"
+-diff --git a/dhcpd/interface.h b/dhcpd/interface.h
+-index 040ff3a..23d6997 100644
+---- a/dhcpd/interface.h
+-+++ b/dhcpd/interface.h
+-@@ -15,6 +15,8 @@
+-  */
+- 
+- #pragma once
+-+#include <event.h>
+-+
+- /*
+-  * Network interfaces represent potential BPF endpoints where local packets
+-  * arrive.  The user tells us which ones does she want to listen on and as
+-@@ -34,6 +36,7 @@ struct network_interface {
+- 	struct shared_network		*shared;
+- 	unsigned	 index;
+- 	char		 name[IF_NAMESIZE];
+-+	u_int8_t	 mac[ETHER_ADDR_LEN];
+- 	int		 oper_state; /* RFC 2863 */
+- 
+- 	/* BPF */
+-diff --git a/dhcpd/lease.c b/dhcpd/lease.c
+-index b98a539..d849751 100644
+---- a/dhcpd/lease.c
+-+++ b/dhcpd/lease.c
+-@@ -18,8 +18,8 @@
+- #include <event.h>
+- #include <limits.h>
+- #include <stdbool.h>
+--#include <stdlib.h>
+--#include <string.h>
+-+#include <bsd/stdlib.h>
+-+#include <bsd/string.h>
+- #include <time.h>
+- 
+- #include "dhcpd.h"
+-diff --git a/dhcpd/log.c b/dhcpd/log.c
+-index a562749..775cf1a 100644
+---- a/dhcpd/log.c
+-+++ b/dhcpd/log.c
+-@@ -16,6 +16,7 @@
+-  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+-  */
+- 
+-+#define _GNU_SOURCE
+- #include <errno.h>
+- #include <stdarg.h>
+- #include <stdio.h>
+-diff --git a/dhcpd/privsep.c b/dhcpd/privsep.c
+-index 448e819..9c78ab6 100644
+---- a/dhcpd/privsep.c
+-+++ b/dhcpd/privsep.c
+-@@ -26,7 +26,7 @@
+- #include <poll.h>
+- #include <signal.h>
+- #include <stdlib.h>
+--#include <string.h>
+-+#include <bsd/string.h>
+- #include <unistd.h>
+- 
+- #include "dhcpd.h"
+-@@ -51,7 +51,7 @@ udp_socket_open(struct in_addr *a)
+- {
+- 	int fd;
+- 	struct sockaddr_in sin = {
+--	    sizeof sin, AF_INET, htons(BOOTP_SERVER_PORT), *a, {0}
+-+	    AF_INET, htons(BOOTP_SERVER_PORT), *a, {0}
+- 	};
+- 
+- 	if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
+-diff --git a/dhcpd/protocol_logic.c b/dhcpd/protocol_logic.c
+-index 0f96f91..1e65b2a 100644
+---- a/dhcpd/protocol_logic.c
+-+++ b/dhcpd/protocol_logic.c
+-@@ -16,8 +16,8 @@
+- 
+- #include <arpa/inet.h>
+- #include <stdio.h>
+--#include <string.h>
+--#include <vis.h>
+-+#include <bsd/string.h>
+-+#include <bsd/vis.h>
+- 
+- #include "dhcpd.h"
+- 
+-diff --git a/dhcpd/protocol_output.c b/dhcpd/protocol_output.c
+-index 1c52aa5..f700837 100644
+---- a/dhcpd/protocol_output.c
+-+++ b/dhcpd/protocol_output.c
+-@@ -14,7 +14,7 @@
+-  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+-  */
+- 
+--#include <string.h>
+-+#include <bsd/string.h>
+- 
+- #include "dhcpd.h"
+- 
 diff --git a/dhcpctl/dhcpctl.c b/dhcpctl/dhcpctl.c
-index 1d49e99..8dd195a 100644
+index ad54e33..5b8c2ac 100644
 --- a/dhcpctl/dhcpctl.c
 +++ b/dhcpctl/dhcpctl.c
-@@ -26,11 +26,11 @@
+@@ -27,11 +27,11 @@
  #include <inttypes.h>
  #include <pwd.h>
  #include <stdio.h>
@@ -17,7 +345,7 @@ index 1d49e99..8dd195a 100644
  
  #include "dhcpd.h"
  #include "parser.h"
-@@ -38,7 +38,7 @@
+@@ -39,7 +39,7 @@
  #define	DHCPD_SAID		"dhcpd said: %s"
  #define	DHCPD_WRONG_IMSG	"wrong answer: imsg type %d len %d"
  
@@ -26,7 +354,7 @@ index 1d49e99..8dd195a 100644
  struct imsgbuf ibuf;
  int quit = 0;
  char error_buffer[ERR_BUF_SIZE * 4];	/* enough for strvis(3) */
-@@ -1101,7 +1101,6 @@ main(int argc, char *argv[])
+@@ -1102,7 +1102,6 @@ main(int argc, char *argv[])
  			len = strlcpy(sun.sun_path, optarg, sizeof sun.sun_path);
  			if (len >= sizeof sun.sun_path)
  				errx(1, "path too long: %s", optarg);
@@ -62,7 +390,7 @@ index 6fcd577..1eb78df 100644
  {
  	char s[64];
 diff --git a/dhcpd/bpf.c b/dhcpd/bpf.c
-index 62db212..460b333 100644
+index 2431770..88be568 100644
 --- a/dhcpd/bpf.c
 +++ b/dhcpd/bpf.c
 @@ -25,6 +25,7 @@
@@ -73,7 +401,7 @@ index 62db212..460b333 100644
  
  /*
   * Unprivileged functions emulating the network stack for BPF.
-@@ -204,6 +205,7 @@ int
+@@ -207,6 +208,7 @@ int
  ether_output(struct reply *r, struct request *req)
  {
  	const size_t len = sizeof req->l2->ether_dhost;
@@ -81,7 +409,7 @@ index 62db212..460b333 100644
  
  	if (r->pkt.l3.ip_dst.s_addr == INADDR_BROADCAST)
  		memset(&r->pkt.l2.ether_dhost, 0xFF, len);
-@@ -211,11 +213,14 @@ ether_output(struct reply *r, struct request *req)
+@@ -214,11 +216,14 @@ ether_output(struct reply *r, struct request *req)
  		memcpy(&r->pkt.l2.ether_dhost, r->pkt.bootp.chaddr.buf, len);
  
  	/*
@@ -145,7 +473,7 @@ index 96f8b38..42d0a20 100644
  	}
  	else
 diff --git a/dhcpd/dhcpd.c b/dhcpd/dhcpd.c
-index 3b8ec91..2cd29b0 100644
+index 68b3550..6796800 100644
 --- a/dhcpd/dhcpd.c
 +++ b/dhcpd/dhcpd.c
 @@ -14,6 +14,7 @@
@@ -156,26 +484,16 @@ index 3b8ec91..2cd29b0 100644
  #include <sys/wait.h>
  #include <assert.h>
  #include <err.h>
-@@ -24,12 +25,15 @@
- #include <stdbool.h>
- #include <stdio.h>
- #include <stdlib.h>
--#include <string.h>
-+#include <bsd/string.h>
+@@ -27,7 +28,6 @@
+ #include <string.h>
  #include <time.h>
--#include <unistd.h>
-+#include <bsd/unistd.h>
+ #include <unistd.h>
+-#include <util.h>
  
  #include "dhcpd.h"
  
-+/* Can't include <grp.h> on Linux, struct group collision. */
-+int setgroups(size_t, const gid_t *);
-+
- enum {
- 	CONTROL_SOCKET,
- 	ROUTING_SOCKET,
 diff --git a/dhcpd/dhcpd.h b/dhcpd/dhcpd.h
-index 4df764b..796be5d 100644
+index 5209bdc..01fe76f 100644
 --- a/dhcpd/dhcpd.h
 +++ b/dhcpd/dhcpd.h
 @@ -16,7 +16,10 @@
@@ -214,7 +532,7 @@ index b577528..177031e 100644
  #include "dhcpd.h"
  #include "debug.h"
 diff --git a/dhcpd/interface.c b/dhcpd/interface.c
-index 48a9acc..abe6f92 100644
+index 0a35ced..65d35f7 100644
 --- a/dhcpd/interface.c
 +++ b/dhcpd/interface.c
 @@ -18,8 +18,8 @@
@@ -250,7 +568,7 @@ index 040ff3a..23d6997 100644
  
  	/* BPF */
 diff --git a/dhcpd/lease.c b/dhcpd/lease.c
-index b98a539..d849751 100644
+index 2fcbd42..53a2ced 100644
 --- a/dhcpd/lease.c
 +++ b/dhcpd/lease.c
 @@ -18,8 +18,8 @@
@@ -265,11 +583,11 @@ index b98a539..d849751 100644
  
  #include "dhcpd.h"
 diff --git a/dhcpd/log.c b/dhcpd/log.c
-index a562749..775cf1a 100644
+index 7e422dd..8f63653 100644
 --- a/dhcpd/log.c
 +++ b/dhcpd/log.c
 @@ -16,6 +16,7 @@
-  * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
   */
  
 +#define _GNU_SOURCE
@@ -277,7 +595,7 @@ index a562749..775cf1a 100644
  #include <stdarg.h>
  #include <stdio.h>
 diff --git a/dhcpd/privsep.c b/dhcpd/privsep.c
-index 448e819..9c78ab6 100644
+index fdc7053..b4340c5 100644
 --- a/dhcpd/privsep.c
 +++ b/dhcpd/privsep.c
 @@ -26,7 +26,7 @@
@@ -299,7 +617,7 @@ index 448e819..9c78ab6 100644
  
  	if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1)
 diff --git a/dhcpd/protocol_logic.c b/dhcpd/protocol_logic.c
-index 0f96f91..1e65b2a 100644
+index 91698ff..ff5af51 100644
 --- a/dhcpd/protocol_logic.c
 +++ b/dhcpd/protocol_logic.c
 @@ -16,8 +16,8 @@
